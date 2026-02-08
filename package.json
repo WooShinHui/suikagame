@@ -1,0 +1,28 @@
+{
+    "name": "app",
+    "engines": {
+        "node": "22"
+    },
+    "source": "index.html",
+    "scripts": {
+        "start": "parcel index.html",
+        "build": "parcel build index.html",
+        "remove": "remove.bat",
+        "removeF": "del /s /q .\\dist\\*.fla",
+        "removeH": "for %i in (dist\\*.html) do if not %i==dist\\index.html del %i",
+        "removeSlash": "powershell.exe -ExecutionPolicy Bypass -File \"replace-slash.ps1\" \"./dist/index.html\" \"./dist/index.html\""
+    },
+    "dependencies": {
+        "@types/createjs": "^0.0.32",
+        "@types/matter-js": "^0.19.8",
+        "crypto-js": "^4.2.0",
+        "matter-js": "^0.20.0",
+        "parcel-bundler": "^1.12.5",
+        "parcel-plugin-static-files-copy": "^2.6.0",
+        "reset-css": "^5.0.2",
+        "webfontloader": "^1.6.28"
+    },
+    "devDependencies": {
+        "typescript": "^5.8.3"
+    }
+}
