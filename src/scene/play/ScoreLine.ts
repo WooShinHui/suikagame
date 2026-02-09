@@ -24,7 +24,7 @@ export class ScoreLine extends ContainerX {
         // ✅ Safe Area 기준 좌표 (좌측 하단)
         // 원본: x=60, y=1180
         this.x = UIScale.safeToCanvasX(60);
-        this.y = UIScale.safeToCanvasY(SAFE_HEIGHT - 100); // 하단에서 100px 위
+        this.y = UIScale.safeToCanvasY(SAFE_HEIGHT); // 하단에서 100px 위
     }
 
     /** 특정 캐릭터를 "획득 완료"로 표시 */

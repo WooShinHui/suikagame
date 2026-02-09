@@ -172,7 +172,7 @@ class CoreApp extends BaseComponentExtends {
          */
         window.onPauseContents = () => {
             createjs.Ticker.paused = true;
-            SoundMgr.handle.onPauseContents();
+            // SoundMgr.handle.onPauseContents();
             TimeMgr.handle.onPauseContents();
         };
 
@@ -181,7 +181,7 @@ class CoreApp extends BaseComponentExtends {
          */
         window.onResumeContents = () => {
             createjs.Ticker.paused = false;
-            SoundMgr.handle.onResumeContents();
+            // SoundMgr.handle.onResumeContents();
             TimeMgr.handle.onResumeContents();
         };
 
@@ -210,47 +210,21 @@ class CoreApp extends BaseComponentExtends {
         const canvas = SystemMgr.handle._canvas;
         if (!canvas) return;
 
-        // ✅ Canvas 크기가 0이면 재시도
-        if (canvas.offsetWidth === 0 || canvas.offsetHeight === 0) {
-            requestAnimationFrame(() => this.handleResize());
-            return;
-        }
-
-        const windowWidth = window.innerWidth;
-        const windowHeight = window.innerHeight;
-        const dpr = window.devicePixelRatio || 1;
-
-        // 1. UIScale 업데이트
         UIScale.update();
 
-        // 2. Canvas 실제 해상도 (DPR 반영)
-        canvas.width = windowWidth * dpr;
-        canvas.height = windowHeight * dpr;
+        const sw = window.innerWidth;
+        const sh = window.innerHeight;
+        const dpr = window.devicePixelRatio || 1;
 
-        // 3. CSS 스타일 (명시적으로 설정)
-        canvas.style.width = '100%';
-        canvas.style.height = '100%';
-        canvas.style.position = 'absolute';
-        canvas.style.left = '0';
-        canvas.style.top = '0';
-        canvas.style.transform = 'none'; // ✅ 혹시 모를 transform 제거
+        canvas.width = sw * dpr;
+        canvas.height = sh * dpr;
 
-        // 4. CreateJS Stage 스케일 + 오프셋
+        // ✅ 세로 높이에 딱 맞춰 스케일 적용
         this._stage.scaleX = this._stage.scaleY = UIScale.scale * dpr;
-        this._stage.x = -UIScale.canvasOffsetX * UIScale.scale * dpr;
-        this._stage.y = -UIScale.canvasOffsetY * UIScale.scale * dpr;
 
-        // 5. 매니저 정보 업데이트
-        SystemMgr.handle._stageWidth = UIScale.canvasWidth;
-        SystemMgr.handle._stageHeight = UIScale.canvasHeight;
-
-        console.log('[CoreApp Resize]', {
-            screen: `${windowWidth}×${windowHeight}`,
-            canvas: `${UIScale.canvasWidth}×${UIScale.canvasHeight}`,
-            scale: UIScale.scale,
-            offset: `${UIScale.canvasOffsetX}, ${UIScale.canvasOffsetY}`,
-            stageScale: this._stage.scaleX / dpr,
-        });
+        // ✅ 가로 중앙 정렬 (양옆 레터박스 생성)
+        this._stage.x = UIScale.canvasOffsetX * UIScale.scale * dpr;
+        this._stage.y = 0; // 세로는 항상 꽉 차있음
 
         this._stage.update();
     }

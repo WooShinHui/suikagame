@@ -23,36 +23,38 @@ export class UIScale {
         const sw = window.innerWidth;
         const sh = window.innerHeight;
 
-        const scaleX = sw / CANVAS_ORIGINAL_WIDTH;
-        const scaleY = sh / CANVAS_ORIGINAL_HEIGHT;
+        // ✅ 무조건 세로 높이에 맞춤
+        this.scale = sh / CANVAS_ORIGINAL_HEIGHT;
 
-        this.scale = Math.max(scaleX, scaleY);
+        // 세로가 꽉 찼으므로 세로 오프셋은 0
+        this.canvasOffsetY = 0;
 
-        this.canvasWidth = Math.ceil(sw / this.scale);
-        this.canvasHeight = Math.ceil(sh / this.scale);
+        // ✅ 가로 오프셋: 화면 중앙에서 캔버스 절반만큼 왼쪽으로 이동
+        // (화면너비 / 2) - (스케일된 캔버스너비 / 2)를 스케일로 역산
+        this.canvasOffsetX = (sw / this.scale - CANVAS_ORIGINAL_WIDTH) / 2;
 
-        this.canvasOffsetX = (CANVAS_ORIGINAL_WIDTH - this.canvasWidth) / 2;
-        this.canvasOffsetY = (CANVAS_ORIGINAL_HEIGHT - this.canvasHeight) / 2;
+        // 논리적 캔버스 크기는 원본 유지
+        this.canvasWidth = CANVAS_ORIGINAL_WIDTH;
+        this.canvasHeight = CANVAS_ORIGINAL_HEIGHT;
 
-        // ✅ Safe Area 오프셋 (중앙 하단 기준)
-        this.safeOffsetX = ((this.canvasWidth - SAFE_WIDTH) / 2) * this.scale;
+        // Safe Area 계산 (중앙 정렬된 가로 오프셋 반영)
+        this.safeOffsetX =
+            this.canvasOffsetX + (CANVAS_ORIGINAL_WIDTH - SAFE_WIDTH) / 2;
 
-        // ✅ 세로는 하단 기준 (상단이 아님!)
-        const safeBottomMargin = 100; // Canvas 원본 기준 하단 마진 (픽셀)
-        const safeBottom = this.canvasHeight - safeBottomMargin;
-        this.safeOffsetY = (safeBottom - SAFE_HEIGHT) * this.scale;
+        // 세로는 하단 마진 100 적용
+        const safeBottomMargin = 100;
+        this.safeOffsetY =
+            CANVAS_ORIGINAL_HEIGHT - safeBottomMargin - SAFE_HEIGHT;
     }
 
-    // Safe Area → Canvas 좌표 변환 (중앙 하단 기준)
+    // 좌표 변환 함수도 간단해집니다.
     static safeToCanvasX(safeX: number): number {
-        return this.canvasOffsetX + (this.canvasWidth - SAFE_WIDTH) / 2 + safeX;
+        return (CANVAS_ORIGINAL_WIDTH - SAFE_WIDTH) / 2 + safeX;
     }
 
     static safeToCanvasY(safeY: number): number {
-        // ✅ 하단 기준으로 수정
         const safeBottomMargin = 100;
-        const safeBottom = this.canvasHeight - safeBottomMargin;
-        return this.canvasOffsetY + (safeBottom - SAFE_HEIGHT) + safeY;
+        return CANVAS_ORIGINAL_HEIGHT - safeBottomMargin - SAFE_HEIGHT + safeY;
     }
 
     // Safe Area X 좌표 → 화면 픽셀

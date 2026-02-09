@@ -68,7 +68,7 @@ class View extends ContainerX {
     // 💡 PLAY 클래스에서 세션 ID를 받아서 저장할 변수
     private currentGameSessionId: string | null = null;
 
-    private gameOverLine: number = 480;
+    private gameOverLine: number;
 
     // 게임오버라인 점멸
     private readonly WARNING_LINE_OFFSET: number = 60;
@@ -146,9 +146,9 @@ class View extends ContainerX {
         this.buildBackgroundAndLayer();
         this.buildMatterEngine();
         this.buildWall();
-        this.buildBaseLine();
         this.addEventListener('tick', this.onTick);
         this.buildGameOverLine();
+        this.buildBaseLine();
 
         this.scoreDisplay = new Score();
         this.addChild(this.scoreDisplay);
@@ -262,15 +262,15 @@ class View extends ContainerX {
      * 좌벽과 우벽의 좌표로  기준선이 움직일수 있는 최소 최대 범위값을 설정.
      */
     private buildWall(): void {
-        const basketWidth = 540;
-        const basketHeight = 700;
+        const basketWidth = SAFE_WIDTH * 0.85;
+        const basketHeight = SAFE_HEIGHT * 0.7; // 화면 높이의 70% 정도
         const wallThickness = 40;
 
         // ✅ 중앙 하단 기준 (세로 위치 수정)
         const centerX = UIScale.safeToCanvasX(SAFE_WIDTH / 2);
 
         // ✅ Safe Area 하단에서 130px 위 (원본 기준)
-        const bottomY = UIScale.safeToCanvasY(SAFE_HEIGHT - 130);
+        const bottomY = UIScale.safeToCanvasY(SAFE_HEIGHT);
 
         this.move_min_x = centerX - basketWidth / 2 + wallThickness / 2;
         this.move_max_x = centerX + basketWidth / 2 - wallThickness / 2;
@@ -315,24 +315,40 @@ class View extends ContainerX {
     }
 
     private buildBaseLine(): void {
+        const centerX = UIScale.safeToCanvasX(SAFE_WIDTH / 2);
         this.base_line = new createjs.MovieClip();
-        const shape = new createjs.Shape();
-        shape.graphics.beginStroke('rgba(255,0,0,1)');
-        shape.graphics.moveTo(0, 400).lineTo(0, 1070);
-        shape.graphics.endStroke();
+        this.base_line.x = centerX;
+        this.base_line.y = UIScale.safeToCanvasY(-180); // y 오프셋은 내부에서 처리하는 게 낫습니다.
 
-        this.base_line.y = 60;
+        const shape = new createjs.Shape();
+        const startY = UIScale.safeToCanvasY(400);
+        const endY = UIScale.safeToCanvasY(1100);
+
+        shape.graphics.setStrokeStyle(1.5, 'round', 'round');
+        shape.graphics.beginStroke('rgba(255,0,0,1)');
+
+        shape.graphics.moveTo(0, startY).lineTo(0, endY);
+        shape.snapToPixel = true;
+        shape.graphics.endStroke();
         this.base_line.addChild(shape);
         this.addChild(this.base_line);
 
         this.drop_target = this.resource.getLibrary('circle_2', 'bundle');
-        this.drop_target.y = 460;
+        this.drop_target.x = centerX;
+        this.drop_target.y = UIScale.safeToCanvasY(440);
         this.addChild(this.drop_target);
     }
 
     private buildGameOverLine(): void {
-        const centerX = UIScale.safeToCanvasX(SAFE_WIDTH / 2);
+        const safeY = 600; // Safe Area 기준 Y 좌표
 
+        // ✅ Canvas 좌표로 변환해서 저장
+        this.gameOverLine = UIScale.safeToCanvasY(safeY);
+
+        const centerX = UIScale.safeToCanvasX(SAFE_WIDTH / 2);
+        const gameoverLineWidth = SAFE_WIDTH * 0.85;
+
+        // 빨간선
         this.gameOverLineVisual = new createjs.MovieClip();
         this.gameOverLineShape = new createjs.Shape();
         this.gameOverLineShape.visible = false;
@@ -340,24 +356,25 @@ class View extends ContainerX {
             .setStrokeStyle(3)
             .beginStroke('rgba(255, 0, 0, 0.7)')
             .setStrokeDash([10])
-            .moveTo(centerX - 332, 0)
-            .lineTo(centerX + 332, 0);
+            .moveTo(centerX - gameoverLineWidth / 2, 0)
+            .lineTo(centerX + gameoverLineWidth / 2, 0);
 
-        // ✅ Safe Area Y 좌표 변환
-        this.gameOverLineVisual.y = UIScale.safeToCanvasY(this.gameOverLine);
+        // ✅ 변환 없이 직접 사용 (이미 Canvas 좌표)
+        this.gameOverLineVisual.y = this.gameOverLine;
         this.gameOverLineVisual.addChild(this.gameOverLineShape);
         this.addChild(this.gameOverLineVisual);
 
+        // 노란선
         this.warningVisual = new createjs.Shape();
         this.warningVisual.graphics
             .setStrokeStyle(2)
             .beginStroke('rgba(255, 255, 0, 0.6)')
             .setStrokeDash([5])
-            .moveTo(centerX - 240, 0)
-            .lineTo(centerX + 240, 0);
-        this.warningVisual.y = UIScale.safeToCanvasY(
-            this.gameOverLine + this.WARNING_LINE_OFFSET
-        );
+            .moveTo(centerX - gameoverLineWidth / 2, 0)
+            .lineTo(centerX + gameoverLineWidth / 2, 0);
+
+        // ✅ Canvas 좌표에 offset 직접 더하기
+        this.warningVisual.y = this.gameOverLine + this.WARNING_LINE_OFFSET;
         this.addChild(this.warningVisual);
         this.gameOverLineVisual.alpha = 0;
     }
@@ -365,16 +382,20 @@ class View extends ContainerX {
     // 다음 크기 원 생성
     private addNextPhase($type: number, $px: number, $py: number): void {
         if ($type < 10) {
-            const circle = Matter.Bodies.circle($px, $py, size[$type + 1], {
+            // ✅ 1. 구슬의 반지름에 스케일 적용
+            // 물리 엔진의 충돌 크기도 화면 커진 만큼 커져야 합니다.
+            const scaledRadius = size[$type + 1];
+
+            const circle = Matter.Bodies.circle($px, $py, scaledRadius, {
                 label: `Bead_${this.cnt}`,
             }) as unknown as MyBody;
 
             circle.typeX = $type + 1;
 
-            // 튕기는 속도 설정 (랜덤한 방향과 크기 y값은 항상 위로)
-            const velocityX = (Math.random() - 0.5) * 2; // -5 ~ 5
+            // ✅ 2. 튕기는 속도 설정 (스케일 반영)
+            // 화면 해상도가 높을수록 속도 값도 비례해서 커져야 시각적으로 동일한 속도로 느껴집니다.
+            const velocityX = (Math.random() - 0.5) * 2;
             const velocityY = -Math.random() * 2;
-
             Matter.Body.setVelocity(circle, {
                 x: velocityX,
                 y: velocityY,
@@ -387,20 +408,21 @@ class View extends ContainerX {
                 'circle_2',
                 `bead_${circle.typeX}`
             );
+
+            // 위치는 물리 엔진의 위치를 그대로 추종 (Update 루프에서 처리될 것임)
             mc.x = circle.position.x;
             mc.y = circle.position.y;
 
             this.beadCt.addChild(mc);
-
             this.setFace(mc, 4, 2000);
 
             this.arr_compos[circle.label] = {};
             this.arr_compos[circle.label].body = circle;
             this.arr_compos[circle.label].mc = mc;
-            this.checkGameOverLine(); // 새 구슬 생성 직후 즉시 체크
+
+            this.checkGameOverLine();
         }
     }
-
     /**
      * 얼굴 표정
      * @param $mc 대상
@@ -428,8 +450,11 @@ class View extends ContainerX {
         const rnd = (Math.random() * 5) >> 0;
         this.bead_order.push(rnd);
 
-        // Matter 객체 생성
-        const bead = Matter.Bodies.circle($x, 460, size[type], {
+        // ✅ Y값 조절: 720x1280 기준 460 위치를 현재 기기 높이에 맞춰 계산
+        const spawnY = UIScale.safeToCanvasY(440);
+
+        // Matter 객체 생성 (460 대신 spawnY 사용)
+        const bead = Matter.Bodies.circle($x, spawnY, size[type], {
             label: `Bead_${this.cnt}`,
         }) as unknown as MyBody;
 
@@ -446,7 +471,7 @@ class View extends ContainerX {
         mc.x = bead.position.x;
         mc.y = bead.position.y;
 
-        //
+        // 회전 트윈
         createjs.Tween.get(mc, { loop: -1, bounce: true }).to(
             { rotation: 720, rotationDir: 1 },
             1000
@@ -463,13 +488,14 @@ class View extends ContainerX {
 
         this.drop_target.gotoAndStop(this.bead_order[0]);
         const child = this.drop_target.getChildAt(0) as createjs.MovieClip;
-        child.gotoAndStop(0); // 다음 과일 우는 모습이 나오는 현상을 방지하기 위해 추가.
+        child.gotoAndStop(0);
+
         // 트윈으로 다음 과일을 스케일 효과 적용하면서 나오게 한다.
         createjs.Tween.get(this.drop_target)
             .wait(500)
             .to({ scaleX: 1, scaleY: 1, alpha: 1 }, 500);
 
-        // 💡 nextCh는 "다음 과일" (즉 bead_order[1])
+        // 💡 nextCh는 "다음 과일"
         this.nextCh.showNext(this.bead_order[1]);
     }
     /**
@@ -603,18 +629,22 @@ class View extends ContainerX {
     private handleMergeRequest = () => {
         this.randomDoubleMerge();
     };
-    //[Receive Controller] Controller 클래스에서 인터렉션에 따른 좌표 정보 수신
     public interaction_MOVE($x: number, $y: number): void {
+        // 스테이지 scale과 stage.x 오프셋이 반영된 마우스 좌표로 변환
+        const pt = this.stage.globalToLocal($x, $y);
+        const targetX = Math.round(pt.x);
+
         const type = this.bead_order[0];
         const space = size[type] / 2;
-        const shrink = 10; // 줄일 값(px)
+        const shrink = 10;
 
         const minX = this.move_min_x + space + shrink;
         const maxX = this.move_max_x - space - shrink;
 
-        if ($x >= minX && $x <= maxX) {
-            this.base_line.x = $x;
-        } else if ($x < minX) {
+        // 변환된 targetX를 대입
+        if (targetX >= minX && targetX <= maxX) {
+            this.base_line.x = targetX;
+        } else if (targetX < minX) {
             this.base_line.x = minX;
         } else {
             this.base_line.x = maxX;
@@ -622,7 +652,6 @@ class View extends ContainerX {
 
         this.drop_target.x = this.base_line.x;
     }
-
     private playCrashEffect(
         $type: number,
         $px: number,
@@ -756,7 +785,9 @@ class View extends ContainerX {
             const compos = this.arr_compos[label];
             const bead = compos.body as MyBody;
 
+            // ✅ 스케일 제거 (물리 엔진 크기 그대로 사용)
             const beadRadius = bead.circleRadius || size[bead.typeX];
+
             const beadTop = bead.position.y - beadRadius;
 
             // ⚠️ 경고 구간
@@ -775,7 +806,6 @@ class View extends ContainerX {
         /* =========================
            ⚠️ WARNING 상태 처리
         ========================= */
-
         if ((detectedWarning || beadOverLine) && !this.isWarningActive) {
             this.isWarningActive = true;
         }
@@ -785,21 +815,16 @@ class View extends ContainerX {
         }
 
         /* =========================
-           ❌ GAME OVER 카운트 처리
+           ❌ GAME OVER 카운트 처리 (시간 기반이므로 좌표계 영향 없음)
         ========================= */
-
         if (beadOverLine) {
             if (this.hasMerged) {
-                console.log(`[GameOver] 합체 발생으로 인해 카운트 리셋`);
                 this.warningStartTime = 0;
                 this.hasMerged = false;
             }
 
             if (this.warningStartTime === 0) {
                 this.warningStartTime = Date.now();
-                console.warn(
-                    `[GameOver] ${beadOverLabel} 라인 넘음, 카운트 시작`
-                );
                 EVT_HUB_SAFE.emit(G_EVT.PLAY.WARNING_ON);
             } else {
                 const elapsedTime = Date.now() - this.warningStartTime;
@@ -810,7 +835,6 @@ class View extends ContainerX {
             }
         } else {
             if (this.warningStartTime !== 0) {
-                console.log(`[GameOver] 경고 해제`);
                 EVT_HUB_SAFE.emit(G_EVT.PLAY.WARNING_OFF);
                 this.warningStartTime = 0;
             }
@@ -820,18 +844,24 @@ class View extends ContainerX {
         /* =========================
            🎨 시각 효과 처리
         ========================= */
-
         if (this.gameOverLineVisual) {
+            // ✅ 비주얼 라인의 Y 좌표도 실시간으로 맞춰줌 (필요 시)
+            this.gameOverLineVisual.y = this.gameOverLine;
+
             if (this.isWarningActive) {
                 if (!this.isWarningSoundPlayed) {
                     SoundMgr.handle.playSound('warning');
                     this.isWarningSoundPlayed = true;
                 }
 
-                this.gameOverLineShape.visible = true;
+                // gameOverLineShape가 세로선 등을 포함한 컨테이너라면 visible 처리
+                if (this.gameOverLineShape)
+                    this.gameOverLineShape.visible = true;
 
                 if (!this.startTime) this.startTime = Date.now();
                 const elapsed = Date.now() - this.startTime;
+
+                // 깜빡임 효과
                 this.gameOverLineVisual.alpha =
                     Math.abs(Math.sin(elapsed / 200)) * 0.7;
             } else {

@@ -75,7 +75,7 @@ export class OptionBtn extends PureDomX {
 
     private applyResize() {
         // ✅ 비율 기반 크기
-        const size = UIScale.getResponsiveSize(60, 50, 70);
+        const size = UIScale.getResponsiveSize(50, 40, 60);
 
         // ✅ 비율 기반 마진
         const marginX = UIScale.getResponsiveMargin(20);
