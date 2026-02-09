@@ -145,12 +145,10 @@ class PLAY extends SceneX {
 
     private buildOptionBtn(): void {
         this._optionBtn = new OptionBtn();
-        this.addChild(this._optionBtn);
     }
 
     private buildChangeBgm(): void {
         this._changeBgm = new ChangeBgm();
-        this.addChild(this._changeBgm);
     }
 
     private buildWarningOverlay(): void {
@@ -160,7 +158,6 @@ class PLAY extends SceneX {
 
     private buildRandomMerge(): void {
         this._randomMerge = new RandomMerge(this._view!);
-        this.addChild(this._randomMerge);
         this._randomMerge.reset(1);
     }
 

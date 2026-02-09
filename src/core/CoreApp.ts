@@ -11,7 +11,7 @@ import { SystemMgr } from '../manager/SystemMgr';
 import { TimeMgr } from '../manager/TimeMgr';
 import 'reset-css';
 import { SoundMgr } from '../manager/SoundMgr';
-
+import { UIScale, SAFE_WIDTH, SAFE_HEIGHT } from '../ui/UIScale';
 /**
  * 무비 클립안에 심어둔 사운드 재생을 위한 전역 함수
  */
@@ -188,7 +188,14 @@ class CoreApp extends BaseComponentExtends {
         // 기기에 출력창 적용
         if ($config.outputWindow) SystemMgr.handle.useOutputWindow();
         window.addEventListener('resize', () => this.handleResize());
+
+        // ✅ [추가] 생성 직후 즉시 실행
         this.handleResize();
+
+        // ⚠️ [중요] requestAnimationFrame으로 한번 더 실행 (DOM 완전 로드 대기)
+        requestAnimationFrame(() => {
+            this.handleResize();
+        });
     }
 
     private tick($e: createjs.Ticker): void {
@@ -201,22 +208,50 @@ class CoreApp extends BaseComponentExtends {
     }
     private handleResize(): void {
         const canvas = SystemMgr.handle._canvas;
+        if (!canvas) return;
+
+        // ✅ Canvas 크기가 0이면 재시도
+        if (canvas.offsetWidth === 0 || canvas.offsetHeight === 0) {
+            requestAnimationFrame(() => this.handleResize());
+            return;
+        }
+
         const windowWidth = window.innerWidth;
         const windowHeight = window.innerHeight;
+        const dpr = window.devicePixelRatio || 1;
 
-        // 게임의 원래 설계 비율 (예: 600x900)
-        const designWidth = 720;
-        const designHeight = 1280;
+        // 1. UIScale 업데이트
+        UIScale.update();
 
-        const scale = Math.min(
-            windowWidth / designWidth,
-            windowHeight / designHeight
-        );
+        // 2. Canvas 실제 해상도 (DPR 반영)
+        canvas.width = windowWidth * dpr;
+        canvas.height = windowHeight * dpr;
 
-        canvas.style.width = designWidth * scale + 'px';
-        canvas.style.height = designHeight * scale + 'px';
+        // 3. CSS 스타일 (명시적으로 설정)
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        canvas.style.position = 'absolute';
+        canvas.style.left = '0';
+        canvas.style.top = '0';
+        canvas.style.transform = 'none'; // ✅ 혹시 모를 transform 제거
 
-        // stage 업데이트 (필요한 경우)
+        // 4. CreateJS Stage 스케일 + 오프셋
+        this._stage.scaleX = this._stage.scaleY = UIScale.scale * dpr;
+        this._stage.x = -UIScale.canvasOffsetX * UIScale.scale * dpr;
+        this._stage.y = -UIScale.canvasOffsetY * UIScale.scale * dpr;
+
+        // 5. 매니저 정보 업데이트
+        SystemMgr.handle._stageWidth = UIScale.canvasWidth;
+        SystemMgr.handle._stageHeight = UIScale.canvasHeight;
+
+        console.log('[CoreApp Resize]', {
+            screen: `${windowWidth}×${windowHeight}`,
+            canvas: `${UIScale.canvasWidth}×${UIScale.canvasHeight}`,
+            scale: UIScale.scale,
+            offset: `${UIScale.canvasOffsetX}, ${UIScale.canvasOffsetY}`,
+            stageScale: this._stage.scaleX / dpr,
+        });
+
         this._stage.update();
     }
 }

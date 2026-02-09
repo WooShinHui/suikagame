@@ -12,7 +12,7 @@ import { Score } from './Score';
 import { SoundMgr } from '../../manager/SoundMgr';
 import { NextCh } from './NextCh';
 import { ScoreLine } from './ScoreLine';
-
+import { UIScale, SAFE_WIDTH, SAFE_HEIGHT } from '../../ui/UIScale';
 interface MyBody extends Matter.Body {
     typeX: number;
 }
@@ -205,12 +205,14 @@ class View extends ContainerX {
     public startGame(): void {
         this.totalScore = 0;
         this.bActive = true;
-        // 🔹 게임 시작 시 첫 구슬과 다음 구슬 미리 표시
+
         if (this.drop_target && this.bead_order.length > 1) {
-            this.drop_target.x = 640;
-            this.base_line.x = 640;
-            this.drop_target.gotoAndStop(this.bead_order[0]); // 현재 조종할 과일
-            this.nextCh.showNext(this.bead_order[1]); // 다음 과일
+            // ✅ Safe Area 중앙
+            const centerX = UIScale.safeToCanvasX(SAFE_WIDTH / 2);
+            this.drop_target.x = centerX;
+            this.base_line.x = centerX;
+            this.drop_target.gotoAndStop(this.bead_order[0]);
+            this.nextCh.showNext(this.bead_order[1]);
         }
     }
 
@@ -260,17 +262,19 @@ class View extends ContainerX {
      * 좌벽과 우벽의 좌표로  기준선이 움직일수 있는 최소 최대 범위값을 설정.
      */
     private buildWall(): void {
-        const basketWidth = 540; // 바구니 가로 너비
-        const basketHeight = 700; // 바구니 깊이 (위쪽은 비어있음)
-        const wallThickness = 40; // 벽 두께
-        const centerX = 360; // 화면 중앙 (720 / 2)
-        const bottomY = 1150; // 바구니 바닥 위치 (하단에서 약간 위로)
+        const basketWidth = 540;
+        const basketHeight = 700;
+        const wallThickness = 40;
 
-        // 💡 과일이 움직일 수 있는 제한 범위 (바구니 안쪽 너비)
+        // ✅ 중앙 하단 기준 (세로 위치 수정)
+        const centerX = UIScale.safeToCanvasX(SAFE_WIDTH / 2);
+
+        // ✅ Safe Area 하단에서 130px 위 (원본 기준)
+        const bottomY = UIScale.safeToCanvasY(SAFE_HEIGHT - 130);
+
         this.move_min_x = centerX - basketWidth / 2 + wallThickness / 2;
         this.move_max_x = centerX + basketWidth / 2 - wallThickness / 2;
 
-        // 1. 바닥 (Ground)
         const ground = Matter.Bodies.rectangle(
             centerX,
             bottomY,
@@ -279,11 +283,10 @@ class View extends ContainerX {
             {
                 isStatic: true,
                 label: 'ground',
-                render: { fillStyle: '#8B4513' }, // 바구니 색상 (갈색 톤)
+                render: { fillStyle: '#8B4513' },
             }
         );
 
-        // 2. 왼쪽 벽 (Left Wall)
         const leftWall = Matter.Bodies.rectangle(
             centerX - basketWidth / 2,
             bottomY - basketHeight / 2,
@@ -296,7 +299,6 @@ class View extends ContainerX {
             }
         );
 
-        // 3. 오른쪽 벽 (Right Wall)
         const rightWall = Matter.Bodies.rectangle(
             centerX + basketWidth / 2,
             bottomY - basketHeight / 2,
@@ -312,16 +314,13 @@ class View extends ContainerX {
         Matter.World.add(this.engine.world, [ground, leftWall, rightWall]);
     }
 
-    /**
-     * 낙하 기준선과 대상을 그린다.
-     * 내부에 Shape 객체로 선을 그린다.
-     */
     private buildBaseLine(): void {
         this.base_line = new createjs.MovieClip();
         const shape = new createjs.Shape();
         shape.graphics.beginStroke('rgba(255,0,0,1)');
         shape.graphics.moveTo(0, 400).lineTo(0, 1070);
         shape.graphics.endStroke();
+
         this.base_line.y = 60;
         this.base_line.addChild(shape);
         this.addChild(this.base_line);
@@ -329,6 +328,38 @@ class View extends ContainerX {
         this.drop_target = this.resource.getLibrary('circle_2', 'bundle');
         this.drop_target.y = 460;
         this.addChild(this.drop_target);
+    }
+
+    private buildGameOverLine(): void {
+        const centerX = UIScale.safeToCanvasX(SAFE_WIDTH / 2);
+
+        this.gameOverLineVisual = new createjs.MovieClip();
+        this.gameOverLineShape = new createjs.Shape();
+        this.gameOverLineShape.visible = false;
+        this.gameOverLineShape.graphics
+            .setStrokeStyle(3)
+            .beginStroke('rgba(255, 0, 0, 0.7)')
+            .setStrokeDash([10])
+            .moveTo(centerX - 332, 0)
+            .lineTo(centerX + 332, 0);
+
+        // ✅ Safe Area Y 좌표 변환
+        this.gameOverLineVisual.y = UIScale.safeToCanvasY(this.gameOverLine);
+        this.gameOverLineVisual.addChild(this.gameOverLineShape);
+        this.addChild(this.gameOverLineVisual);
+
+        this.warningVisual = new createjs.Shape();
+        this.warningVisual.graphics
+            .setStrokeStyle(2)
+            .beginStroke('rgba(255, 255, 0, 0.6)')
+            .setStrokeDash([5])
+            .moveTo(centerX - 240, 0)
+            .lineTo(centerX + 240, 0);
+        this.warningVisual.y = UIScale.safeToCanvasY(
+            this.gameOverLine + this.WARNING_LINE_OFFSET
+        );
+        this.addChild(this.warningVisual);
+        this.gameOverLineVisual.alpha = 0;
     }
 
     // 다음 크기 원 생성
@@ -708,35 +739,6 @@ class View extends ContainerX {
             }
         });
     };
-
-    private buildGameOverLine(): void {
-        this.gameOverLineVisual = new createjs.MovieClip();
-        this.gameOverLineShape = new createjs.Shape();
-        this.gameOverLineShape.visible = false;
-        this.gameOverLineShape.graphics
-            .setStrokeStyle(3)
-            .beginStroke('rgba(255, 0, 0, 0.7)')
-            .setStrokeDash([10])
-            .moveTo(317, 0)
-            .lineTo(981, 0);
-
-        this.gameOverLineVisual.y = this.gameOverLine;
-
-        this.gameOverLineVisual.addChild(this.gameOverLineShape);
-
-        this.addChild(this.gameOverLineVisual);
-
-        this.warningVisual = new createjs.Shape();
-        this.warningVisual.graphics
-            .setStrokeStyle(2)
-            .beginStroke('rgba(255, 255, 0, 0.6)')
-            .setStrokeDash([5])
-            .moveTo(120, 0)
-            .lineTo(600, 0);
-        this.warningVisual.y = this.gameOverLine + this.WARNING_LINE_OFFSET;
-        this.addChild(this.warningVisual);
-        this.gameOverLineVisual.alpha = 0;
-    }
 
     /**
      * 💡 핵심 수정된 게임오버 체크 로직

@@ -7,7 +7,7 @@ import { RscMgr } from '../manager/RscMgr';
 import { TimeMgr } from '../manager/TimeMgr';
 import { SoundMgr } from '../manager/SoundMgr';
 import EVT from '../EVT';
-
+import { UIScale } from '../ui/UIScale';
 class App extends CoreApp {
     constructor($config: AppConfig) {
         super($config);
@@ -25,6 +25,16 @@ class App extends CoreApp {
         await this.loadManifest();
         await this.loadResource();
         await this.loadFonts();
+
+        // ✅ [추가] 리소스 로드 완료 후 resize 한번 더
+        requestAnimationFrame(() => {
+            const canvas = SystemMgr.handle._canvas;
+            if (canvas && canvas.offsetWidth > 0) {
+                // DOM이 완전히 렌더링된 후 실행
+                (this as any).handleResize?.(); // CoreApp의 handleResize 호출
+            }
+        });
+
         this.startFirstScene();
     }
 
@@ -186,9 +196,6 @@ class App extends CoreApp {
         observer.observe(canvas);
     }
     private updateLoadShot() {
-        const DESIGN_WIDTH = 1280;
-        const DESIGN_HEIGHT = 800;
-
         const canvas = document.getElementById(
             'create_cvs'
         ) as HTMLCanvasElement;
@@ -201,12 +208,13 @@ class App extends CoreApp {
         const rect = canvas.getBoundingClientRect();
         if (rect.width === 0 || rect.height === 0) return;
 
-        const scale = rect.width / DESIGN_WIDTH;
+        // ✅ UIScale 업데이트
+        UIScale.update();
 
         Object.assign(loadShot.style, {
             left: `${rect.left + rect.width / 2}px`,
             top: `${rect.top + rect.height / 2}px`,
-            transform: `translate(-50%, -50%) scale(${scale})`,
+            transform: `translate(-50%, -50%) scale(${UIScale.scale})`,
             opacity: 1,
         });
     }

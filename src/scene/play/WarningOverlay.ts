@@ -5,6 +5,7 @@ import View from './View';
 
 export class WarningOverlay extends DomX {
     private isActive = false;
+
     constructor(private _view: View) {
         super(document.createElement('div'));
 
@@ -14,12 +15,10 @@ export class WarningOverlay extends DomX {
 
         this.create();
 
-        // 안전하게 이벤트 등록
         EVT_HUB_SAFE.on(G_EVT.PLAY.WARNING_ON, this.show);
         EVT_HUB_SAFE.on(G_EVT.PLAY.WARNING_OFF, this.hide);
         EVT_HUB_SAFE.on(G_EVT.PLAY.GAME_OVER, this.hide);
 
-        // 스타일 추가
         const style = document.createElement('style');
         style.innerHTML = `
 @keyframes warningPulse {
@@ -29,12 +28,14 @@ export class WarningOverlay extends DomX {
 }`;
         document.head.appendChild(style);
     }
+
     private resizeToCanvas = () => {
         const canvas = document.querySelector('canvas');
         if (!canvas) return;
 
         const rect = canvas.getBoundingClientRect();
 
+        // ✅ CSS 픽셀 기준으로 오버레이 배치 (DPR 자동 처리)
         Object.assign(this.htmlElement.style, {
             left: `${rect.left}px`,
             top: `${rect.top}px`,
@@ -42,12 +43,11 @@ export class WarningOverlay extends DomX {
             height: `${rect.height}px`,
         });
     };
-    // dispose 메서드 추가: 이벤트 제거
+
     public dispose() {
         EVT_HUB_SAFE.off(G_EVT.PLAY.WARNING_ON, this.show);
         EVT_HUB_SAFE.off(G_EVT.PLAY.WARNING_OFF, this.hide);
         EVT_HUB_SAFE.off(G_EVT.PLAY.GAME_OVER, this.hide);
-
         window.removeEventListener('resize', this.resizeToCanvas);
     }
 
@@ -60,7 +60,7 @@ export class WarningOverlay extends DomX {
         Object.assign(this.htmlElement.style, {
             position: 'absolute',
             pointerEvents: 'none',
-            zIndex: 50,
+            zIndex: '50',
             background:
                 'radial-gradient(circle at center, rgba(255,0,0,0.0) 30%, rgba(120,0,0,0.65) 85%)',
             opacity: '0',
@@ -69,10 +69,7 @@ export class WarningOverlay extends DomX {
 
         parent.appendChild(this.htmlElement);
 
-        // ⭐ 최초 1회
         this.resizeToCanvas();
-
-        // ⭐ 리사이즈 대응
         window.addEventListener('resize', this.resizeToCanvas);
     }
 

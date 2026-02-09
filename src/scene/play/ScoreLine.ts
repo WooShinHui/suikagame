@@ -1,4 +1,5 @@
 import ContainerX from '../../core/ContainerX';
+import { UIScale, SAFE_WIDTH, SAFE_HEIGHT } from '../../ui/UIScale';
 
 export class ScoreLine extends ContainerX {
     private icons: createjs.MovieClip[] = [];
@@ -20,12 +21,13 @@ export class ScoreLine extends ContainerX {
             }
         }
 
-        // 위치 조정
-        this.x = 60;
-        this.y = 1180;
+        // ✅ Safe Area 기준 좌표 (좌측 하단)
+        // 원본: x=60, y=1180
+        this.x = UIScale.safeToCanvasX(60);
+        this.y = UIScale.safeToCanvasY(SAFE_HEIGHT - 100); // 하단에서 100px 위
     }
 
-    /** 특정 캐릭터를 “획득 완료”로 표시 */
+    /** 특정 캐릭터를 "획득 완료"로 표시 */
     public activateFruit(type: number) {
         const icon = this.icons[type];
         if (!icon) return;

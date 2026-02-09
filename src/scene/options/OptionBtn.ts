@@ -1,26 +1,36 @@
-import { EVT_HUB, G_EVT } from '../../events/EVT_HUB';
 import { EVT_HUB_SAFE } from '../../events/SafeEventHub';
-import DomX from '../../core/DomX';
+import { G_EVT } from '../../events/EVT_HUB';
+import PureDomX from '../../core/PureDomX';
 import { SoundMgr } from '../../manager/SoundMgr';
 import { UIScale } from '../../ui/UIScale';
 
-export class OptionBtn extends DomX {
+export class OptionBtn extends PureDomX {
+    // ✅ 변경
     private btn!: HTMLButtonElement;
 
     constructor() {
-        super(document.createElement('div'));
+        const container = document.createElement('div');
+        super(container);
+
+        Object.assign(this.htmlElement.style, {
+            position: 'absolute',
+            top: '0',
+            left: '0',
+            width: '100%',
+            height: '100%',
+            pointerEvents: 'none',
+            zIndex: '1000',
+            transform: 'none !important',
+        });
+
         this.create();
 
-        // canvas 부모에 붙이기
         const canvas = document.querySelector('canvas');
         const parent = canvas?.parentElement || document.body;
         parent.appendChild(this.htmlElement);
 
         this.applyResize();
-
-        window.addEventListener('resize', () => {
-            this.applyResize();
-        });
+        window.addEventListener('resize', () => this.applyResize());
     }
 
     private create() {
@@ -34,15 +44,15 @@ export class OptionBtn extends DomX {
             border: 'none',
             cursor: 'pointer',
             padding: '0',
+            pointerEvents: 'auto',
+            zIndex: '1000',
         });
 
-        // 클릭
         this.btn.addEventListener('click', () => {
             EVT_HUB_SAFE.emit(G_EVT.MENU.INGAME_OPEN_OPTION);
             SoundMgr.handle.playSound('btn');
         });
 
-        // 눌림 상태
         this.btn.addEventListener('pointerdown', () => {
             this.btn.style.backgroundImage =
                 'url("./assets/images/setting_n.png")';
@@ -59,31 +69,26 @@ export class OptionBtn extends DomX {
             this.btn.style.backgroundImage =
                 'url("./assets/images/setting_s.png")';
         });
+
         this.htmlElement.appendChild(this.btn);
     }
 
     private applyResize() {
-        const canvas = document.querySelector('canvas');
-        if (!canvas) return;
+        // ✅ 비율 기반 크기
+        const size = UIScale.getResponsiveSize(60, 50, 70);
 
-        const parent = canvas.parentElement || document.body;
-        const canvasRect = canvas.getBoundingClientRect();
-        const parentRect = parent.getBoundingClientRect();
+        // ✅ 비율 기반 마진
+        const marginX = UIScale.getResponsiveMargin(20);
+        const marginY = UIScale.getResponsiveMargin(40);
 
-        const offsetX = canvasRect.left - parentRect.left;
-        const offsetY = canvasRect.top - parentRect.top;
-
-        const scaleX = canvasRect.width / 720;
-        const scaleY = canvasRect.height / 1280;
-        const scale = Math.min(scaleX, scaleY);
-
-        // 이미지 버튼 크기 및 위치 설정
-        const btnSize = 60 * scale; // 이미지 크기에 맞춰 조정 가능
-        this.btn.style.width = `${btnSize}px`;
-        this.btn.style.height = `${btnSize}px`;
-
-        // 우측 하단 적절한 위치 배치
-        this.btn.style.top = `${offsetY + 20 * scaleY}px`;
-        this.btn.style.left = `${offsetX + 560 * scaleX}px`;
+        UIScale.layoutElementViewport(
+            this.btn,
+            'right',
+            'top',
+            marginX,
+            marginY,
+            size,
+            size
+        );
     }
 }

@@ -1,6 +1,7 @@
 import ContainerX from '../../core/ContainerX';
 import { EVT_HUB, G_EVT } from '../../events/EVT_HUB';
 import { EVT_HUB_SAFE } from '../../events/SafeEventHub';
+import { UIScale, SAFE_WIDTH } from '../../ui/UIScale';
 
 export class Score extends ContainerX {
     private currentScore: number = 0;
@@ -31,9 +32,10 @@ export class Score extends ContainerX {
             }
         }
 
-        // 중앙 또는 원하는 위치 조정
-        this.scoreRoot.x = 240;
-        this.scoreRoot.y = 80;
+        // ✅ Safe Area 기준 좌표 (중앙 상단)
+        // 원본: x=240, y=80
+        this.scoreRoot.x = UIScale.safeToCanvasX(SAFE_WIDTH / 2 - 120); // 중앙에서 조금 왼쪽
+        this.scoreRoot.y = UIScale.safeToCanvasY(80);
     }
 
     private addEventListeners(): void {

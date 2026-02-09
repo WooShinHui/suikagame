@@ -1,4 +1,5 @@
 import ContainerX from '../../core/ContainerX';
+import { UIScale, SAFE_WIDTH } from '../../ui/UIScale';
 
 export class NextCh extends ContainerX {
     private nextMc: createjs.MovieClip;
@@ -6,18 +7,18 @@ export class NextCh extends ContainerX {
     constructor() {
         super();
 
-        // FLA에서 미리보기용 무비클립
         this.nextMc = this.resource.getLibrary('circle_2', 'mNext');
         this.addChild(this.nextMc);
 
-        // 위치 (화면 오른쪽 위 예시)
-        this.x = 955;
-        this.y = 120;
+        // ✅ Safe Area 기준 좌표 (우측 상단)
+        // 원본: Safe Area X=580, Y=120
+        // 우측에서 140px(720-580) 마진
+        this.x = UIScale.safeToCanvasX(SAFE_WIDTH - 300);
+        this.y = UIScale.safeToCanvasY(120);
 
-        this.nextMc.gotoAndStop(0); // 초기값
+        this.nextMc.gotoAndStop(0);
     }
 
-    /** 다음 과일 타입으로 갱신 */
     public showNext(type: number) {
         this.nextMc.gotoAndStop(type);
     }

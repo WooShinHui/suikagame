@@ -1,8 +1,7 @@
-import DomX from '../../core/DomX';
-import { EVT_HUB, G_EVT } from '../../events/EVT_HUB';
+import PureDomX from '../../core/PureDomX';
 import { EVT_HUB_SAFE } from '../../events/SafeEventHub';
+import { G_EVT } from '../../events/EVT_HUB';
 import { SoundMgr } from '../../manager/SoundMgr';
-import { API_CONNECTOR } from '../../fetch/ApiConnector';
 import { UIScale } from '../../ui/UIScale';
 
 const BGM_LIST = [
@@ -21,16 +20,16 @@ const BGM_LIST = [
     { src: 'assets/sounds/Jazz.mp3', title: 'Jazz' },
 ];
 
-export class ChangeBgm extends DomX {
+export class ChangeBgm extends PureDomX {
     private titleElement!: HTMLElement;
     private btnBgm!: HTMLButtonElement;
-    private btnReset!: HTMLButtonElement;
     private currentBgmIndex: number = 0;
-    private static instance: ChangeBgm | null = null; // 싱글톤
-    private wasInit: boolean = false;
+    private static instance: ChangeBgm | null = null;
 
     constructor() {
-        super(document.createElement('div'));
+        const container = document.createElement('div');
+        super(container);
+
         if (ChangeBgm.instance) return ChangeBgm.instance;
 
         this.htmlElement.id = 'change-bgm-root';
@@ -40,38 +39,27 @@ export class ChangeBgm extends DomX {
             left: '0',
             width: '100%',
             height: '100%',
-            pointerEvents: 'none', // 자식 버튼만 이벤트 받도록
+            pointerEvents: 'none',
+            zIndex: '1000',
+            transform: 'none !important',
         });
 
-        // 캔버스 루트에 추가
         const canvas = document.querySelector('canvas');
         const parent = canvas?.parentElement || document.body;
         parent.appendChild(this.htmlElement);
 
         this.createElements();
 
-        // 로컬 저장값 불러오기
-        const getIndex = localStorage.getItem('bgmIndex');
-        if (getIndex) this.currentBgmIndex = Number(getIndex);
+        const savedIndex = localStorage.getItem('bgmIndex');
+        if (savedIndex) this.currentBgmIndex = Number(savedIndex);
         this.updateTitleDisplay();
 
-        // 타이틀 주기적 반짝
         setInterval(() => this.sparkleTitle(), 2800);
 
         ChangeBgm.instance = this;
 
-        EVT_HUB_SAFE.on(G_EVT.DATA.SCORE_RESET_SUCCESS, (e) => {
-            this.wasInit = e.data;
-        });
-        EVT_HUB_SAFE.on(G_EVT.DATA.SCORE_RESET_FAIL, (e) => {
-            this.wasInit = e.data;
-        });
-
         this.applyLayout();
-        window.addEventListener('resize', () => {
-            UIScale.update(); // 화면 크기 변경에 따른 스케일 업데이트
-            this.applyLayout();
-        });
+        window.addEventListener('resize', () => this.applyLayout());
     }
 
     private createElements() {
@@ -80,10 +68,6 @@ export class ChangeBgm extends DomX {
         this.btnBgm.id = 'btn-bgm';
         Object.assign(this.btnBgm.style, {
             position: 'absolute',
-            width: UIScale.px(189),
-            height: UIScale.px(83),
-            top: UIScale.posY(596),
-            left: UIScale.posX(20),
             cursor: 'pointer',
             background:
                 'url("/assets/images/bt_bgm_s.png") no-repeat center/contain',
@@ -93,16 +77,20 @@ export class ChangeBgm extends DomX {
         this.htmlElement.appendChild(this.btnBgm);
 
         this.btnBgm.addEventListener('pointerdown', () => {
-            this.btnBgm.style.backgroundImage = `url("/assets/images/bt_bgm_n.png")`;
+            this.btnBgm.style.backgroundImage =
+                'url("/assets/images/bt_bgm_n.png")';
         });
         this.btnBgm.addEventListener('pointerleave', () => {
-            this.btnBgm.style.backgroundImage = `url("/assets/images/bt_bgm_s.png")`;
+            this.btnBgm.style.backgroundImage =
+                'url("/assets/images/bt_bgm_s.png")';
         });
         this.btnBgm.addEventListener('pointerup', () => {
-            this.btnBgm.style.backgroundImage = `url("/assets/images/bt_bgm_s.png")`;
+            this.btnBgm.style.backgroundImage =
+                'url("/assets/images/bt_bgm_s.png")';
         });
-        this.btnBgm.addEventListener('pointecancel', () => {
-            this.btnBgm.style.backgroundImage = `url("/assets/images/bt_bgm_s.png")`;
+        this.btnBgm.addEventListener('pointercancel', () => {
+            this.btnBgm.style.backgroundImage =
+                'url("/assets/images/bt_bgm_s.png")';
         });
         this.btnBgm.onclick = () => {
             SoundMgr.handle.playSound('btn');
@@ -114,79 +102,18 @@ export class ChangeBgm extends DomX {
         this.titleElement = document.createElement('div');
         Object.assign(this.titleElement.style, {
             position: 'absolute',
-            top: UIScale.posY(700),
-            left: UIScale.posX(26),
             fontFamily: '"PressStart2P-Regular", monospace',
-            fontSize: UIScale.px(18),
             letterSpacing: '1.5px',
             textTransform: 'uppercase',
             color: '#F8E6B8',
             background: 'rgba(90, 65, 40, 0.78)',
-            padding: `${UIScale.px(14)} ${UIScale.px(36)}`,
-            borderRadius: UIScale.px(18),
             textAlign: 'center',
             whiteSpace: 'nowrap',
-            outline: '4px solid transparent',
-            backgroundClip: 'padding-box',
-            boxShadow: `
-                0 0 0 ${UIScale.px(3)} #7a5a28,
-                0 0 0 ${UIScale.px(6)} #e6c87a,
-                0 0 0 ${UIScale.px(9)} #b08a3a,
-                inset -${UIScale.px(2)} -${UIScale.px(2)} ${UIScale.px(
-                3
-            )} rgba(0,0,0,0.35)
-            `,
-            textShadow: `0 0 ${UIScale.px(1)} rgba(0,0,0,0.7)`,
             transition: 'text-shadow 0.8s ease',
             pointerEvents: 'none',
-            zIndex: 100,
+            zIndex: '100',
         });
         this.htmlElement.appendChild(this.titleElement);
-
-        // 점수 리셋 버튼
-        // this.btnReset = document.createElement('button');
-        // Object.assign(this.btnReset.style, {
-        //     position: 'absolute',
-        //     width: UIScale.px(189),
-        //     height: UIScale.px(83),
-        //     top: UIScale.posY(300),
-        //     left: UIScale.posX(300),
-        //     cursor: 'pointer',
-        //     background:
-        //         'url("/assets/images/bt_z_s.png") no-repeat center/contain',
-        //     border: 'none',
-        //     pointerEvents: 'auto',
-        // });
-        // this.htmlElement.appendChild(this.btnReset);
-
-        // this.btnReset.addEventListener('pointerdown', () => {
-        //     this.btnReset.style.backgroundImage = `url("/assets/images/bt_z_n.png")`;
-        // });
-        // this.btnReset.addEventListener('pointerleave', () => {
-        //     this.btnReset.style.backgroundImage = `url("/assets/images/bt_z_s.png")`;
-        // });
-        // this.btnReset.addEventListener('pointerup', () => {
-        //     this.btnReset.style.backgroundImage = `url("/assets/images/bt_z_s.png")`;
-        // });
-        // this.btnReset.addEventListener('pointercancle', () => {
-        //     this.btnReset.style.backgroundImage = `url("/assets/images/bt_z_s.png")`;
-        // });
-        // this.btnReset.onclick = async () => {
-        //     if (
-        //         confirm(
-        //             '정말 초기화하시겠습니까? \n최고 기록 점수가 0점이 되며, 1인당 1회만 사용 가능합니다.'
-        //         )
-        //     ) {
-        //         const success = await API_CONNECTOR.resetScoreAsync(); // 👈 기다림!
-
-        //         if (success) {
-        //             // 서버가 성공했다고 할 때만 재시작
-        //             EVT_HUB_SAFE.emit(G_EVT.RE.START);
-        //         } else {
-        //             alert('이미 사용하셨거나 1회 이상 게임을 마치셔야 합니다.');
-        //         }
-        //     }
-        // };
     }
 
     private changeNextBGM() {
@@ -203,27 +130,46 @@ export class ChangeBgm extends DomX {
 
     private sparkleTitle() {
         this.titleElement.style.textShadow = `
-            0 0 ${UIScale.px(4)} rgba(255, 220, 160, 0.45),
-            0 0 ${UIScale.px(8)} rgba(255, 200, 120, 0.25)
+            0 0 4px rgba(255, 220, 160, 0.45),
+            0 0 8px rgba(255, 200, 120, 0.25)
         `;
         setTimeout(() => {
-            this.titleElement.style.textShadow = `0 0 ${UIScale.px(
-                1
-            )} rgba(0,0,0,0.7)`;
+            this.titleElement.style.textShadow = '0 0 1px rgba(0,0,0,0.7)';
         }, 900);
     }
+
     private applyLayout = () => {
-        UIScale.update();
+        this.htmlElement.style.transform = 'none';
 
-        this.btnBgm.style.width = UIScale.px(60);
-        this.btnBgm.style.height = UIScale.px(60);
-        this.btnBgm.style.left = UIScale.posX(20);
-        this.btnBgm.style.top = UIScale.posY(26);
+        const sw = window.innerWidth;
+        const size = sw < 400 ? 50 : 60;
+        const margin = 30;
 
-        this.titleElement.style.left = UIScale.posX(126);
-        this.titleElement.style.top = UIScale.posY(40);
-        this.titleElement.style.padding = `${UIScale.px(10)} ${UIScale.px(18)}`;
-        this.titleElement.style.borderRadius = UIScale.px(12);
-        this.titleElement.style.fontSize = UIScale.px(12);
+        UIScale.layoutElementViewport(
+            this.btnBgm,
+            'left',
+            'top',
+            margin,
+            60,
+            size,
+            size
+        );
+
+        // ✅ 타이틀: 버튼 오른쪽 (절대 위치)
+        const titleLeft = 40 + 60 + 10; // 버튼 왼쪽(40) + 버튼 크기(60) + 간격(10)
+        this.titleElement.style.left = `${titleLeft}px`;
+        this.titleElement.style.top = '68px';
+
+        // 크기는 고정
+        this.titleElement.style.padding = '10px 18px';
+        this.titleElement.style.borderRadius = '12px';
+        this.titleElement.style.fontSize = '12px';
+        this.titleElement.style.boxShadow = `
+            0 0 0 3px #7a5a28,
+            0 0 0 6px #e6c87a,
+            0 0 0 9px #b08a3a,
+            inset -2px -2px 3px rgba(0,0,0,0.35)
+        `;
+        this.titleElement.style.textShadow = '0 0 1px rgba(0,0,0,0.7)';
     };
 }
