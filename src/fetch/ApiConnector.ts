@@ -9,6 +9,7 @@ import {
     setDoc,
     getDoc,
     getDocs,
+    deleteDoc, // ✅ 추가
     query,
     orderBy,
     limit,
@@ -36,6 +37,12 @@ export class ApiConnector {
         return ApiConnector.instance;
     }
 
+    // ✅ 호환성 메서드 (PLAY.ts에서 호출)
+    public refreshSession() {
+        console.log('[Firebase] refreshSession 호출 (현재는 불필요)');
+        // Firebase는 세션 갱신 불필요
+    }
+
     // ✅ CrazyGames 사용자 정보 설정
     public async setCrazyGamesUser(userInfo: {
         userId: string;
@@ -43,9 +50,17 @@ export class ApiConnector {
         countryCode: string;
         profilePicture: string | null;
     }) {
+        console.log('🔹 setCrazyGamesUser 호출:', userInfo);
+
+        // ✅ undefined 방지
+        if (!userInfo.userId) {
+            console.error('❌ userId가 없습니다!');
+            return;
+        }
+
         this.currentId = userInfo.userId;
-        this.currentUsername = userInfo.username;
-        this.currentCountryCode = userInfo.countryCode;
+        this.currentUsername = userInfo.username || 'Guest';
+        this.currentCountryCode = userInfo.countryCode || 'XX';
 
         await this.initFirebaseSession(userInfo);
     }
@@ -57,6 +72,11 @@ export class ApiConnector {
         countryCode: string;
     }) {
         try {
+            // ✅ userId 검증
+            if (!userInfo.userId) {
+                throw new Error('userId is required');
+            }
+
             // 1. 세션 ID 생성 (고유값)
             this.currentSessionId = `${userInfo.userId}_${Date.now()}`;
 
@@ -66,14 +86,18 @@ export class ApiConnector {
             ).toString();
 
             // 3. Firestore에 세션 저장
-            await setDoc(doc(sessionsRef, this.currentSessionId), {
+            const sessionData = {
                 userId: userInfo.userId,
-                username: userInfo.username,
-                countryCode: userInfo.countryCode,
+                username: userInfo.username || 'Guest',
+                countryCode: userInfo.countryCode || 'XX',
                 sessionSecret: this.sessionSecret,
                 createdAt: serverTimestamp(),
                 itemCount: 1, // 기본 아이템 1개
-            });
+            };
+
+            console.log('🔹 세션 데이터:', sessionData);
+
+            await setDoc(doc(sessionsRef, this.currentSessionId), sessionData);
 
             console.log('✅ Firebase 세션 생성 완료:', this.currentSessionId);
 
@@ -81,8 +105,8 @@ export class ApiConnector {
             EVT_HUB_SAFE.emit(G_EVT.PLAY.SESSION_STARTED, {
                 gameSessionId: this.currentSessionId,
                 userId: userInfo.userId,
-                username: userInfo.username,
-                countryCode: userInfo.countryCode,
+                username: userInfo.username || 'Guest',
+                countryCode: userInfo.countryCode || 'XX',
                 itemCount: 1,
                 isServerVerified: true,
             });
@@ -98,25 +122,43 @@ export class ApiConnector {
         username: string | null,
         gameSessionId?: string
     ) {
+        console.log('🔹 sendFinalScore 호출:', {
+            finalScore,
+            userId,
+            username,
+            gameSessionId,
+            currentId: this.currentId,
+            currentSessionId: this.currentSessionId,
+        });
+
         try {
+            // ✅ userId가 없으면 currentId 사용
+            const effectiveUserId = userId || this.currentId || 'guest';
             const sId = gameSessionId || this.currentSessionId;
+
+            console.log('🔹 effectiveUserId:', effectiveUserId);
+            console.log('🔹 sessionId:', sId);
 
             if (!sId) {
                 console.error('[Firebase] 세션 ID 없음');
+                alert('세션이 초기화되지 않았습니다. 페이지를 새로고침하세요.');
                 return;
             }
 
-            // 1. 세션 검증 (선택사항)
+            // 1. 세션 검증
             const sessionDoc = await getDoc(doc(sessionsRef, sId));
             if (!sessionDoc.exists()) {
-                console.error('[Firebase] 유효하지 않은 세션');
+                console.error('[Firebase] 유효하지 않은 세션:', sId);
+                alert('세션이 만료되었습니다. 페이지를 새로고침하세요.');
                 return;
             }
 
+            console.log('✅ 세션 검증 완료');
+
             // 2. 점수 저장
-            const scoreId = `${userId}_${Date.now()}`;
+            const scoreId = `${effectiveUserId}_${Date.now()}`;
             await setDoc(doc(scoresRef, scoreId), {
-                userId: userId,
+                userId: effectiveUserId,
                 username: username || this.currentUsername || 'Guest',
                 countryCode: this.currentCountryCode || 'XX',
                 score: finalScore,
@@ -127,18 +169,23 @@ export class ApiConnector {
             console.log('✅ 점수 저장 완료:', finalScore);
 
             // 3. 이전 최고 점수 조회
-            const previousHighScore = await this.getUserHighScore(userId);
+            const previousHighScore = await this.getUserHighScore(
+                effectiveUserId
+            );
+
+            console.log('📊 이전 최고 점수:', previousHighScore);
 
             // 4. 결과 표시 이벤트 발행
+            console.log('🔹 SHOW_RESULT 이벤트 발행');
             EVT_HUB_SAFE.emit(G_EVT.PLAY.SHOW_RESULT, {
                 mode: 'GAME_OVER',
-                userId: userId,
+                userId: effectiveUserId,
                 finalScore: finalScore,
                 previousHighScore: previousHighScore,
             });
         } catch (error) {
             console.error('[Firebase] 점수 저장 실패:', error);
-            alert('점수 저장에 실패했습니다. 다시 시도해주세요.');
+            alert(`점수 저장 실패: ${error.message}`);
         }
     }
 
@@ -199,8 +246,8 @@ export class ApiConnector {
             // 사용자별 최고 점수 계산 (클라이언트에서)
             const userMaxScores = new Map<string, any>();
 
-            snapshot.forEach((doc) => {
-                const data = doc.data();
+            snapshot.forEach((docSnapshot) => {
+                const data = docSnapshot.data();
                 const userId = data.userId;
                 const score = data.score;
 
@@ -238,9 +285,8 @@ export class ApiConnector {
         try {
             if (!this.currentSessionId) return false;
 
-            const sessionDoc = await getDoc(
-                doc(sessionsRef, this.currentSessionId)
-            );
+            const sessionDocRef = doc(sessionsRef, this.currentSessionId);
+            const sessionDoc = await getDoc(sessionDocRef);
 
             if (!sessionDoc.exists()) return false;
 
@@ -252,7 +298,7 @@ export class ApiConnector {
             }
 
             // 아이템 차감
-            await setDoc(doc(sessionsRef, this.currentSessionId), {
+            await setDoc(sessionDocRef, {
                 ...sessionDoc.data(),
                 itemCount: itemCount - 1,
             });
@@ -269,15 +315,14 @@ export class ApiConnector {
         try {
             if (!this.currentSessionId) return false;
 
-            const sessionDoc = await getDoc(
-                doc(sessionsRef, this.currentSessionId)
-            );
+            const sessionDocRef = doc(sessionsRef, this.currentSessionId);
+            const sessionDoc = await getDoc(sessionDocRef);
 
             if (!sessionDoc.exists()) return false;
 
             const itemCount = sessionDoc.data().itemCount || 0;
 
-            await setDoc(doc(sessionsRef, this.currentSessionId), {
+            await setDoc(sessionDocRef, {
                 ...sessionDoc.data(),
                 itemCount: itemCount + 1,
             });
@@ -294,15 +339,14 @@ export class ApiConnector {
         try {
             if (!this.currentSessionId) return false;
 
-            const sessionDoc = await getDoc(
-                doc(sessionsRef, this.currentSessionId)
-            );
+            const sessionDocRef = doc(sessionsRef, this.currentSessionId);
+            const sessionDoc = await getDoc(sessionDocRef);
 
             if (!sessionDoc.exists()) return false;
 
             const itemCount = sessionDoc.data().itemCount || 0;
 
-            await setDoc(doc(sessionsRef, this.currentSessionId), {
+            await setDoc(sessionDocRef, {
                 ...sessionDoc.data(),
                 itemCount: itemCount + 1,
             });
@@ -327,7 +371,10 @@ export class ApiConnector {
 
             const snapshot = await getDocs(userScoresQuery);
 
-            const deletePromises = snapshot.docs.map((doc) => doc.ref.delete());
+            // ✅ deleteDoc 사용
+            const deletePromises = snapshot.docs.map((docSnapshot) =>
+                deleteDoc(docSnapshot.ref)
+            );
 
             await Promise.all(deletePromises);
 
@@ -375,10 +422,22 @@ export class ApiConnector {
             console.error('[Firebase] 랭킹 로드 실패:', error);
         }
     }
+    public async getItemCount(): Promise<number | null> {
+        try {
+            if (!this.currentSessionId) return null;
 
-    // ❌ 제거: updateRankingName (Firebase는 실시간 업데이트 불필요)
-    // ❌ 제거: 모든 암호화 관련 로직
-    // ❌ 제거: 서버 통신 관련 fetch
+            const sessionDocRef = doc(sessionsRef, this.currentSessionId);
+            const sessionDoc = await getDoc(sessionDocRef);
+
+            if (!sessionDoc.exists()) return null;
+
+            const itemCount = sessionDoc.data().itemCount || 0;
+            return itemCount;
+        } catch (error) {
+            console.error('[Firebase] 아이템 개수 조회 실패:', error);
+            return null;
+        }
+    }
 }
 
 export const API_CONNECTOR = ApiConnector.getInstance();

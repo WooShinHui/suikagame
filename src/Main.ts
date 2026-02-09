@@ -20,6 +20,17 @@ function applyResize() {
 // ✅ CrazyGames 초기화
 async function initCrazyGames() {
     try {
+        // ✅ SDK 존재 확인
+        if (!window.CrazyGames?.SDK) {
+            console.warn('⚠️ CrazyGames SDK 없음 - 게스트 모드');
+            return {
+                userId: `guest_${Date.now()}`,
+                username: 'Guest',
+                countryCode: 'XX',
+                profilePicture: null,
+            };
+        }
+
         await window.CrazyGames.SDK.init();
         console.log('✅ CrazyGames SDK 초기화 완료');
 
@@ -61,14 +72,17 @@ window.onload = async () => {
     UIScale.update();
 
     // ✅ 1. CrazyGames 초기화
+    console.log('🔹 CrazyGames 초기화 시작...');
     const userInfo = await initCrazyGames();
+    console.log('🔹 사용자 정보:', userInfo);
 
     // ✅ 2. Firebase 세션 생성
+    console.log('🔹 Firebase 세션 생성 시작...');
     await API_CONNECTOR.setCrazyGamesUser(userInfo);
 
     // 3. 게임 로딩 시작 알림
     if (window.CrazyGames?.SDK?.game) {
-        window.CrazyGames.SDK.game.sdkGameLoadingStart();
+        // window.CrazyGames.SDK.game.sdkGameLoadingStart();
     }
 
     // 4. 게임 앱 생성
@@ -87,7 +101,7 @@ window.onload = async () => {
     // 5. 게임 로딩 완료 알림
     setTimeout(() => {
         if (window.CrazyGames?.SDK?.game) {
-            window.CrazyGames.SDK.game.sdkGameLoadingStop();
+            // window.CrazyGames.SDK.game.sdkGameLoadingStop();
             window.CrazyGames.SDK.game.gameplayStart();
         }
     }, 2000);
