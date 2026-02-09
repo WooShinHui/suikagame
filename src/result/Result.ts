@@ -14,8 +14,7 @@ interface RankingEntry {
 
 export class Result {
     private readonly SERVER_BASE_URL: string = 'https://suikagame.ddns.net';
-    private readonly TEAM_KEY: string = 'guest_team_name';
-    private readonly USER_KEY: string = 'guest_user_name';
+    private currentUsername: string | null = null; // ✅ 추가
     private readonly BEST_SCORE_KEY: string = 'highScore';
 
     private resultCt: HTMLDivElement;
@@ -83,6 +82,7 @@ export class Result {
         EVT_HUB_SAFE.on(G_EVT.PLAY.SESSION_STARTED, (event: any) => {
             const data = event.data || {};
             this.currentUserId = data.userId;
+            this.currentUsername = data.username; // ✅ 추가
         });
 
         // 3) 서버 결과 표시
@@ -120,62 +120,21 @@ export class Result {
 
     // --- 1) GAME_OVER 처리: 이름 확인, 입력창 띄우기 또는 서버에 username 갱신 후 저장 요청 발생 ---
     private async handlePreResultCheck(event: any): Promise<void> {
-        if (this.isChecking) {
-            console.warn('[Result] 이미 점수 처리 중 — 중복 호출 무시');
-            return;
-        }
+        if (this.isChecking) return;
         this.isChecking = true;
+
         try {
-            // 우선 event에서 finalScore, userId, gameSessionId 등을 가져옴 (View가 보냈을 것)
             const evData = event.data || {};
-            const eventFinalScore = evData.finalScore;
-            const eventUserId = evData.userId;
-            const eventGameSessionId = evData.gameSessionId;
+            this.finalScore = evData.finalScore;
+            this.currentGameSessionId = evData.gameSessionId;
 
-            // 우선 finalScore 저장 (View에서 보낸 값 우선)
-            if (typeof eventFinalScore === 'number')
-                this.finalScore = eventFinalScore;
-
-            // 세션/유저 아이디는 우선순위로 저장
-            // if (eventUserId) this.currentUserId = eventUserId;
-            if (eventGameSessionId)
-                this.currentGameSessionId = eventGameSessionId;
-
-            // 로컬 스토리지에 이름이 있는지 확인
-            const teamName = localStorage.getItem(this.TEAM_KEY);
-            const userName = localStorage.getItem(this.USER_KEY);
-
-            // case A: 이미 로컬스토리지에 팀/이름이 있다 -> 서버에 username 업데이트 후 저장 요청 발생
-            if (teamName && userName) {
-                const usernameForRanking = `${teamName}/${userName}`;
-
-                // 1) 서버에 username 업데이트 (이 함수은 실패해도 다음 단계 진행되도록 처리)
-                await this.updateUsernameOnServer(
-                    this.currentUserId ||
-                        this.currentGameSessionId ||
-                        `guest_${Date.now()}`,
-                    usernameForRanking
-                );
-
-                // 2) 서버에 점수 저장 요청을 보냄 (ApiConnector가 처리)
-                EVT_HUB_SAFE.emit(G_EVT.PLAY.REQUEST_COLLISION_SAVE, {
-                    finalScore: this.finalScore,
-                    userId: this.currentUserId,
-                    gameSessionId: this.currentGameSessionId,
-                    username: usernameForRanking,
-                });
-
-                // 결과창은 ApiConnector가 서버 저장 후 SHOW_RESULT 이벤트로 띄움
-                return;
-            }
-
-            // case B: 로컬에 이름이 없다 -> guest id 확보 후 입력폼 띄움
-            if (!this.currentUserId) {
-                // generate guest id for this session if not present
-                this.currentUserId = 'guest_' + new Date().getTime();
-            }
-
-            this.showNameInput(this.currentUserId);
+            // ✅ 바로 점수 저장 (이름 입력 없음)
+            EVT_HUB_SAFE.emit(G_EVT.PLAY.REQUEST_COLLISION_SAVE, {
+                finalScore: this.finalScore,
+                userId: this.currentUserId,
+                gameSessionId: this.currentGameSessionId,
+                username: this.currentUsername,
+            });
         } finally {
             this.isChecking = false;
         }

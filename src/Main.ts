@@ -20,11 +20,9 @@ function applyResize() {
 // ✅ CrazyGames 초기화
 async function initCrazyGames() {
     try {
-        // 1. SDK 초기화
         await window.CrazyGames.SDK.init();
         console.log('✅ CrazyGames SDK 초기화 완료');
 
-        // 2. 사용자 정보 가져오기
         const userInfo = await window.CrazyGames.SDK.user.getUser();
 
         if (userInfo) {
@@ -36,7 +34,6 @@ async function initCrazyGames() {
                 profilePicture: userInfo.profilePictureUrl,
             };
         } else {
-            // 게스트 모드
             console.log('ℹ️ 게스트 모드');
             return {
                 userId: `guest_${Date.now()}`,
@@ -47,7 +44,6 @@ async function initCrazyGames() {
         }
     } catch (error) {
         console.error('❌ CrazyGames 초기화 실패:', error);
-        // 폴백: 게스트
         return {
             userId: `guest_${Date.now()}`,
             username: 'Guest',
@@ -67,11 +63,13 @@ window.onload = async () => {
     // ✅ 1. CrazyGames 초기화
     const userInfo = await initCrazyGames();
 
-    // ✅ 2. ApiConnector에 사용자 정보 전달
+    // ✅ 2. Firebase 세션 생성
     await API_CONNECTOR.setCrazyGamesUser(userInfo);
 
     // 3. 게임 로딩 시작 알림
-    window.CrazyGames.SDK.game.sdkGameLoadingStart();
+    if (window.CrazyGames?.SDK?.game) {
+        window.CrazyGames.SDK.game.sdkGameLoadingStart();
+    }
 
     // 4. 게임 앱 생성
     const config: AppConfig = {
@@ -86,8 +84,11 @@ window.onload = async () => {
 
     new App(config);
 
-    // 5. 게임 로딩 완료 알림 (리소스 로드 후)
+    // 5. 게임 로딩 완료 알림
     setTimeout(() => {
-        window.CrazyGames.SDK.game.sdkGameLoadingStop();
+        if (window.CrazyGames?.SDK?.game) {
+            window.CrazyGames.SDK.game.sdkGameLoadingStop();
+            window.CrazyGames.SDK.game.gameplayStart();
+        }
     }, 2000);
 };
