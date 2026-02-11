@@ -238,51 +238,38 @@ export class RscMgr {
     public async loadResource($key: string, $src: string): Promise<void> {
         const item = this.mCommonQueue.getItem($key);
         if (item) {
-            console.error(`해당 키 ${$key} 는 등록된 키 입니다.`);
-            return new Promise<void>((resolve) => {
-                resolve();
-            });
+            return; // 이미 등록됨
         }
 
         return new Promise<void>((resolve, reject) => {
-            // 리소스 로드 성공시
-            this.mCommonQueue.addEventListener(
-                'fileload',
-                ($e: createjs.Event) => {
-                    if ($e.item.id === $key) {
-                        this.mCommonQueue.removeAllEventListeners('fileload');
-                        this.mCommonQueue.removeAllEventListeners('error');
-                        console.log(`로드 성공`);
+            const onLoad = ($e: createjs.Event) => {
+                if ($e.item.id === $key) {
+                    this.mCommonQueue.removeEventListener('fileload', onLoad);
+                    this.mCommonQueue.removeEventListener('error', onError);
 
-                        const path_arr = $src.split('.');
-                        const extension = path_arr[path_arr.length - 1];
-                        // mp3음원 파일이면 createjs.Sound에 등록할것
-                        if (extension === 'mp3') {
-                            createjs.Sound.registerSound($src, $key);
-                            console.log(
-                                `%c${$key} : registerSound`,
-                                'font-weight: bold;background: green; color: white; font-size: 20px;'
-                            );
-                        }
-
-                        resolve();
+                    // ❌ 아래의 registerSound 코드를 제거합니다.
+                    // LoadQueue가 installPlugin(createjs.Sound) 상태라면
+                    // 이미 내부적으로 등록이 완료된 상태입니다.
+                    /*
+                    if (extension === 'mp3') {
+                        createjs.Sound.registerSound($src, $key);
                     }
+                    */
+                    resolve();
                 }
-            );
+            };
 
-            // 리소스 로드 실패시
-            this.mCommonQueue.addEventListener(
-                'error',
-                ($e: createjs.Event) => {
-                    if ($e.item.id === $key) {
-                        this.mCommonQueue.removeAllEventListeners('fileload');
-                        this.mCommonQueue.removeAllEventListeners('error');
-                        reject(new Error(`로드 실패: ${$src}`));
-                    }
+            const onError = ($e: createjs.Event) => {
+                if ($e.item.id === $key) {
+                    this.mCommonQueue.removeEventListener('fileload', onLoad);
+                    this.mCommonQueue.removeEventListener('error', onError);
+                    reject(new Error(`로드 실패: ${$src}`));
                 }
-            );
+            };
 
-            // 리소스 로드 실행
+            this.mCommonQueue.addEventListener('fileload', onLoad);
+            this.mCommonQueue.addEventListener('error', onError);
+
             this.mCommonQueue.loadFile({
                 id: `${$key}`,
                 src: `${this.mURLRoot}${$src}`,

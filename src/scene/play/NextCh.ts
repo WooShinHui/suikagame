@@ -10,11 +10,10 @@ export class NextCh extends ContainerX {
         this.nextMc = this.resource.getLibrary('circle_2', 'mNext');
         this.addChild(this.nextMc);
 
-        // ✅ Safe Area 기준 좌표 (우측 상단)
-        // 원본: Safe Area X=580, Y=120
-        // 우측에서 140px(720-580) 마진
-        this.x = UIScale.safeToCanvasX(SAFE_WIDTH - 300);
-        this.y = UIScale.safeToCanvasY(120);
+        this.scaleX = 0.8;
+        this.scaleY = 0.8;
+        this.x = UIScale.safeToCanvasX(SAFE_WIDTH - 250);
+        this.y = UIScale.safeToCanvasY(0);
 
         this.nextMc.gotoAndStop(0);
     }

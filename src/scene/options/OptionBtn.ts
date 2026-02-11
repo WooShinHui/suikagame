@@ -79,7 +79,7 @@ export class OptionBtn extends PureDomX {
 
         // ✅ 비율 기반 마진
         const marginX = UIScale.getResponsiveMargin(20);
-        const marginY = UIScale.getResponsiveMargin(40);
+        const marginY = UIScale.getResponsiveMargin(20);
 
         UIScale.layoutElementViewport(
             this.btn,

@@ -17,12 +17,6 @@
             "src": "assets/images/bg.png"
         }
     ],
-    "video": [
-        {
-            "key": "intro",
-            "src": "assets/video/intro.mp4"
-        }
-    ],
     "sounds": [
         {
             "key": "beads",

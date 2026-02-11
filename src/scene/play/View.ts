@@ -13,6 +13,7 @@ import { SoundMgr } from '../../manager/SoundMgr';
 import { NextCh } from './NextCh';
 import { ScoreLine } from './ScoreLine';
 import { UIScale, SAFE_WIDTH, SAFE_HEIGHT } from '../../ui/UIScale';
+import { Box } from './Box';
 interface MyBody extends Matter.Body {
     typeX: number;
 }
@@ -123,6 +124,8 @@ class View extends ContainerX {
     // 다음 떨어질 타겟
     private nextCh: NextCh;
 
+    private box: Box;
+
     private scoreLine: ScoreLine;
 
     private soundCache: Record<string, HTMLAudioElement> = {};
@@ -142,8 +145,10 @@ class View extends ContainerX {
             audio.preload = 'auto';
             this.soundCache[name] = audio;
         });
-        this.buildBeadOrder();
+
         this.buildBackgroundAndLayer();
+
+        this.buildBeadOrder();
         this.buildMatterEngine();
         this.buildWall();
         this.addEventListener('tick', this.onTick);
@@ -234,6 +239,10 @@ class View extends ContainerX {
 
         this.beadCt = new ContainerX();
         this.addChild(this.beadCt);
+
+        this.box = new Box();
+        this.addChild(this.box);
+        this.setChildIndex(this.box, 1);
     }
 
     // Matter 엔진 정의
@@ -270,7 +279,7 @@ class View extends ContainerX {
         const centerX = UIScale.safeToCanvasX(SAFE_WIDTH / 2);
 
         // ✅ Safe Area 하단에서 130px 위 (원본 기준)
-        const bottomY = UIScale.safeToCanvasY(SAFE_HEIGHT);
+        const bottomY = UIScale.safeToCanvasY(SAFE_HEIGHT - 70);
 
         this.move_min_x = centerX - basketWidth / 2 + wallThickness / 2;
         this.move_max_x = centerX + basketWidth / 2 - wallThickness / 2;
@@ -340,7 +349,7 @@ class View extends ContainerX {
     }
 
     private buildGameOverLine(): void {
-        const safeY = 600; // Safe Area 기준 Y 좌표
+        const safeY = 400; // Safe Area 기준 Y 좌표
 
         // ✅ Canvas 좌표로 변환해서 저장
         this.gameOverLine = UIScale.safeToCanvasY(safeY);
@@ -630,6 +639,12 @@ class View extends ContainerX {
         this.randomDoubleMerge();
     };
     public interaction_MOVE($x: number, $y: number): void {
+        // ✅ null 체크 추가
+        if (!this.stage) {
+            console.warn('[View] stage가 null - 이벤트 무시');
+            return;
+        }
+
         // 스테이지 scale과 stage.x 오프셋이 반영된 마우스 좌표로 변환
         const pt = this.stage.globalToLocal($x, $y);
         const targetX = Math.round(pt.x);
@@ -652,6 +667,7 @@ class View extends ContainerX {
 
         this.drop_target.x = this.base_line.x;
     }
+
     private playCrashEffect(
         $type: number,
         $px: number,
@@ -675,9 +691,14 @@ class View extends ContainerX {
         this.addChild(effect);
     }
 
-    public interaction_DOWN($x: number, $y: number): void {}
-
+    public interaction_DOWN($x: number, $y: number): void {
+        // ✅ null 체크 추가
+        if (!this.stage) return;
+    }
     public interaction_UP($x: number, $y: number): void {
+        // ✅ null 체크 추가
+        if (!this.stage) return;
+
         if (this.bClick) {
             this.addBead(this.base_line.x);
             this.drop_target.gotoAndStop(this.bead_order[0]);

@@ -15,7 +15,7 @@ class IntroMenu extends DomX {
         Object.assign(this.htmlElement.style, {
             width: '1280px',
             height: '800px',
-            backgroundImage: 'url("/assets/images/intro_bg.png")',
+            backgroundImage: 'url("./assets/images/intro_bg.png")',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             position: 'relative',
@@ -139,7 +139,7 @@ class IntroMenu extends DomX {
             width: '38px',
             height: '38px',
             borderRadius: '50%',
-            backgroundImage: 'url("/assets/images/default_avatar.png")',
+            backgroundImage: 'url("./assets/images/default_avatar.png")',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             flexShrink: '0',

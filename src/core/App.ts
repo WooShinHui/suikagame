@@ -130,6 +130,7 @@ class App extends CoreApp {
         this.start(sceneName);
     }
 
+    // App.ts
     private async start($sceneName: string) {
         let isValid = false;
 
@@ -163,17 +164,29 @@ class App extends CoreApp {
 
                 SystemMgr.handle.currentSceneName = scene.name;
 
-                // ✅ 무조건 먼저 보여준다
+                // ✅ 씬 추가 직후 강제 resize
+                console.log('🔧 씬 추가 직후 강제 resize');
+                this.handleResize();
+
                 this.showLoadShot();
 
-                // ✅ preload / create 완료까지 대기
                 await scene.preload();
                 await scene.create();
 
-                // ✅ 끝났으면 즉시 제거
                 this.hideLoadShot();
 
+                // ✅ onMounted 직전에도 한번 더
+                console.log('🔧 onMounted 직전 강제 resize');
+                this.handleResize();
+
                 scene.onMounted();
+
+                // ✅ onMounted 직후에도 한번 더 (안전장치)
+                requestAnimationFrame(() => {
+                    console.log('🔧 onMounted 직후 강제 resize');
+                    this.handleResize();
+                });
+
                 break;
             }
         }
@@ -183,6 +196,38 @@ class App extends CoreApp {
                 `[Error] ${$sceneName} 이란 이름의 씬이 존재하지 않습니다.`
             );
         }
+    }
+
+    // ✅ handleResize를 public으로 변경 (외부 호출 가능)
+    public handleResize(): void {
+        const canvas = SystemMgr.handle._canvas;
+        if (!canvas) return;
+
+        UIScale.update();
+
+        const sw = window.innerWidth;
+        const sh = window.innerHeight;
+        const dpr = window.devicePixelRatio || 1;
+
+        canvas.width = sw * dpr;
+        canvas.height = sh * dpr;
+
+        // ✅ 세로 높이에 딱 맞춰 스케일 적용
+        this._stage.scaleX = this._stage.scaleY = UIScale.scale * dpr;
+
+        // ✅ 가로 중앙 정렬 (양옆 레터박스 생성)
+        this._stage.x = UIScale.canvasOffsetX * UIScale.scale * dpr;
+        this._stage.y = 0; // 세로는 항상 꽉 차있음
+
+        this._stage.update();
+
+        console.log('📐 handleResize 실행:', {
+            scale: UIScale.scale,
+            stageScaleX: this._stage.scaleX,
+            stageX: this._stage.x,
+            canvasWidth: canvas.width,
+            canvasHeight: canvas.height,
+        });
     }
 
     private observeCanvasResize() {

@@ -21,7 +21,8 @@ export class Score extends ContainerX {
             'mScore'
         ) as createjs.MovieClip;
         this.addChild(this.scoreRoot);
-
+        this.scoreRoot.scaleX = 0.8;
+        this.scoreRoot.scaleY = 0.8;
         for (let i = 0; i <= 3; i++) {
             const clip = this.scoreRoot.getChildByName(
                 `n${i}`
@@ -34,8 +35,8 @@ export class Score extends ContainerX {
 
         // ✅ Safe Area 기준 좌표 (중앙 상단)
         // 원본: x=240, y=80
-        this.scoreRoot.x = UIScale.safeToCanvasX(SAFE_WIDTH / 2 - 120); // 중앙에서 조금 왼쪽
-        this.scoreRoot.y = UIScale.safeToCanvasY(80);
+        this.scoreRoot.x = UIScale.safeToCanvasX(SAFE_WIDTH / 2 - 100); // 중앙에서 조금 왼쪽
+        this.scoreRoot.y = UIScale.safeToCanvasY(40);
     }
 
     private addEventListeners(): void {

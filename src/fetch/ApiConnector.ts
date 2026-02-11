@@ -51,11 +51,14 @@ export class ApiConnector {
         profilePicture: string | null;
     }) {
         console.log('🔹 setCrazyGamesUser 호출:', userInfo);
+        console.log('  - userId:', userInfo.userId);
+        console.log('  - username:', userInfo.username);
+        console.log('  - countryCode:', userInfo.countryCode);
 
-        // ✅ undefined 방지
-        if (!userInfo.userId) {
-            console.error('❌ userId가 없습니다!');
-            return;
+        // ✅ undefined/null 체크
+        if (!userInfo.userId || userInfo.userId === 'undefined') {
+            console.error('❌ userId가 없습니다!', userInfo);
+            throw new Error('Invalid userId: ' + userInfo.userId);
         }
 
         this.currentId = userInfo.userId;
@@ -122,25 +125,23 @@ export class ApiConnector {
         username: string | null,
         gameSessionId?: string
     ) {
-        console.log('🔹 sendFinalScore 호출:', {
-            finalScore,
-            userId,
-            username,
-            gameSessionId,
-            currentId: this.currentId,
-            currentSessionId: this.currentSessionId,
-        });
+        console.log('📤 sendFinalScore 호출');
+        console.log('  - finalScore:', finalScore);
+        console.log('  - userId:', userId);
+        console.log('  - username:', username);
+        console.log('  - gameSessionId:', gameSessionId);
+        console.log('  - currentId:', this.currentId);
+        console.log('  - currentSessionId:', this.currentSessionId);
 
         try {
-            // ✅ userId가 없으면 currentId 사용
             const effectiveUserId = userId || this.currentId || 'guest';
             const sId = gameSessionId || this.currentSessionId;
 
-            console.log('🔹 effectiveUserId:', effectiveUserId);
-            console.log('🔹 sessionId:', sId);
+            console.log('  → effectiveUserId:', effectiveUserId);
+            console.log('  → sessionId:', sId);
 
             if (!sId) {
-                console.error('[Firebase] 세션 ID 없음');
+                console.error('❌ 세션 ID 없음!');
                 alert('세션이 초기화되지 않았습니다. 페이지를 새로고침하세요.');
                 return;
             }
@@ -148,7 +149,7 @@ export class ApiConnector {
             // 1. 세션 검증
             const sessionDoc = await getDoc(doc(sessionsRef, sId));
             if (!sessionDoc.exists()) {
-                console.error('[Firebase] 유효하지 않은 세션:', sId);
+                console.error('❌ 유효하지 않은 세션:', sId);
                 alert('세션이 만료되었습니다. 페이지를 새로고침하세요.');
                 return;
             }
@@ -166,25 +167,25 @@ export class ApiConnector {
                 timestamp: serverTimestamp(),
             });
 
-            console.log('✅ 점수 저장 완료:', finalScore);
+            console.log('✅ Firebase 점수 저장 완료:', finalScore);
 
             // 3. 이전 최고 점수 조회
             const previousHighScore = await this.getUserHighScore(
                 effectiveUserId
             );
-
             console.log('📊 이전 최고 점수:', previousHighScore);
 
             // 4. 결과 표시 이벤트 발행
-            console.log('🔹 SHOW_RESULT 이벤트 발행');
+            console.log('📤 SHOW_RESULT 이벤트 발행');
             EVT_HUB_SAFE.emit(G_EVT.PLAY.SHOW_RESULT, {
                 mode: 'GAME_OVER',
                 userId: effectiveUserId,
                 finalScore: finalScore,
                 previousHighScore: previousHighScore,
             });
+            console.log('✅ SHOW_RESULT 이벤트 발행 완료');
         } catch (error) {
-            console.error('[Firebase] 점수 저장 실패:', error);
+            console.error('❌ Firebase 점수 저장 실패:', error);
             alert(`점수 저장 실패: ${error.message}`);
         }
     }

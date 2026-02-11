@@ -5,19 +5,14 @@ import { SoundMgr } from '../../manager/SoundMgr';
 import { UIScale } from '../../ui/UIScale';
 
 const BGM_LIST = [
-    { src: 'assets/sounds/bgm.mp3', title: 'BASIC' },
-    { src: 'assets/sounds/AI_2.mp3', title: 'HOPEFUL' },
-    { src: 'assets/sounds/AI_3.mp3', title: 'RHYTHMIC' },
-    { src: 'assets/sounds/AI_9.mp3', title: 'CHEERFUL' },
-    { src: 'assets/sounds/AI_8.mp3', title: 'ENERGETIC' },
-    { src: 'assets/sounds/AI_5.mp3', title: 'RETRO' },
-    { src: 'assets/sounds/AI_6.mp3', title: 'YEAR-END' },
-    { src: 'assets/sounds/AI_7.mp3', title: 'XMAS-EVE' },
-    { src: 'assets/sounds/Lounge.mp3', title: 'Lounge' },
-    { src: 'assets/sounds/Happy.mp3', title: 'Happy' },
-    { src: 'assets/sounds/Warm.mp3', title: 'Warm' },
-    { src: 'assets/sounds/Winter.mp3', title: 'Winter' },
-    { src: 'assets/sounds/Jazz.mp3', title: 'Jazz' },
+    { src: './assets/sounds/HOPEFUL.mp3', title: 'HOPEFUL' },
+    { src: './assets/sounds/RHYTHMIC.mp3', title: 'RHYTHMIC' },
+    { src: './assets/sounds/CHEERFUL.mp3', title: 'CHEERFUL' },
+    { src: './assets/sounds/ENERGETIC.mp3', title: 'ENERGETIC' },
+    { src: './assets/sounds/RETRO.mp3', title: 'RETRO' },
+    { src: './assets/sounds/Happy.mp3', title: 'Happy' },
+    { src: './assets/sounds/Warm.mp3', title: 'Warm' },
+    { src: './assets/sounds/Jazz.mp3', title: 'Jazz' },
 ];
 
 export class ChangeBgm extends PureDomX {
@@ -70,7 +65,7 @@ export class ChangeBgm extends PureDomX {
             position: 'absolute',
             cursor: 'pointer',
             background:
-                'url("/assets/images/bt_bgm_s.png") no-repeat center/contain',
+                'url("./assets/images/bt_bgm_s.png") no-repeat center/contain',
             border: 'none',
             pointerEvents: 'auto',
         });
@@ -78,19 +73,19 @@ export class ChangeBgm extends PureDomX {
 
         this.btnBgm.addEventListener('pointerdown', () => {
             this.btnBgm.style.backgroundImage =
-                'url("/assets/images/bt_bgm_n.png")';
+                'url("./assets/images/bt_bgm_n.png")';
         });
         this.btnBgm.addEventListener('pointerleave', () => {
             this.btnBgm.style.backgroundImage =
-                'url("/assets/images/bt_bgm_s.png")';
+                'url("./assets/images/bt_bgm_s.png")';
         });
         this.btnBgm.addEventListener('pointerup', () => {
             this.btnBgm.style.backgroundImage =
-                'url("/assets/images/bt_bgm_s.png")';
+                'url("./assets/images/bt_bgm_s.png")';
         });
         this.btnBgm.addEventListener('pointercancel', () => {
             this.btnBgm.style.backgroundImage =
-                'url("/assets/images/bt_bgm_s.png")';
+                'url("./assets/images/bt_bgm_s.png")';
         });
         this.btnBgm.onclick = () => {
             SoundMgr.handle.playSound('btn');

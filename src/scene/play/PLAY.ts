@@ -4,7 +4,7 @@ import Controller from './Controller';
 import SceneX from '../../core/SceneX';
 import { SoundMgr } from '../../manager/SoundMgr';
 import { EVT_HUB, G_EVT } from '../../events/EVT_HUB';
-import { Result } from '../../result/Result';
+import { Result } from '../../result/Result'; // ✅ import 경로 확인
 import { Option } from '../options/Option';
 import { OptionBtn } from '../options/OptionBtn';
 import { ChangeBgm } from '../options/ChangeBgm';
@@ -15,7 +15,7 @@ import { API_CONNECTOR } from '../../fetch/ApiConnector';
 
 class PLAY extends SceneX {
     private _view!: View | null;
-    private _result!: Result | null;
+    private _result!: Result | null; // ✅ 타입 선언
     private _controller!: Controller | null;
     private _optionBtn!: OptionBtn | null;
     private _changeBgm!: ChangeBgm | null;
@@ -46,7 +46,6 @@ class PLAY extends SceneX {
         EVT_HUB_SAFE.on(G_EVT.MENU.INGAME_OPEN_OPTION, () => {
             this.onOpenOption();
         });
-        EVT_HUB_SAFE.on(G_EVT.RE.START, this.onRestart);
 
         this.create();
     }
@@ -68,7 +67,10 @@ class PLAY extends SceneX {
     public async create(): Promise<void> {}
 
     public onMounted(): void {
+        console.log('🎮 PLAY.onMounted() 시작');
+        EVT_HUB_SAFE.on(G_EVT.RE.START, this.onRestart);
         this.buildView();
+        this.buildResult(); // ✅ 추가!
         this.buildController();
         this.buildOptionBtn();
         this.buildOption();
@@ -76,27 +78,44 @@ class PLAY extends SceneX {
         this.buildWarningOverlay();
         this.buildRandomMerge();
 
-        // ✅ 세션 초기화 후 게임 시작
         this.startNewGameSession().then(() => {
             this._view?.startGame();
         });
     }
 
+    // PLAY.ts
     public dispose(): void {
         console.log('[PLAY] Scene Dispose: 리스너 및 컴포넌트 정리 시작');
 
         EVT_HUB_SAFE.off(G_EVT.LOGIN.LOGIN_SUCCESS, this.onLoginSuccess);
+        EVT_HUB_SAFE.off(G_EVT.MENU.INGAME_OPEN_OPTION, this.onOpenOption);
+        EVT_HUB_SAFE.off(G_EVT.RE.START, this.onRestart);
+
+        // ✅ Controller dispose 추가
+        if (this._controller) {
+            this._controller.dispose();
+        }
 
         if (this._view) {
             this._view.dispose();
         }
+
         if (this._warningOverlay) {
             this._warningOverlay.dispose();
         }
 
+        if (this._result) {
+            this._result.dispose();
+        }
+        // ✅ RandomMerge도 dispose 필요하면 추가
+        // if (this._randomMerge && typeof this._randomMerge.dispose === 'function') {
+        //     // this._randomMerge.dispose();
+        // }
+
         this.removeAllChildren();
 
         this._view = null;
+        this._result = null;
         this._controller = null;
         this._optionBtn = null;
         this._changeBgm = null;
@@ -113,6 +132,16 @@ class PLAY extends SceneX {
         }
         this._view = new View();
         this.addChild(this._view);
+    }
+
+    // ✅ 추가!
+    private buildResult(): void {
+        if (this._result) {
+            console.warn('⚠️ Result 이미 존재함 - 재사용');
+            return;
+        }
+        this._result = new Result();
+        console.log('✅ Result 인스턴스 생성 완료');
     }
 
     private buildController(): void {
@@ -155,7 +184,6 @@ class PLAY extends SceneX {
         SoundMgr.handle.sfxMuted = sfxMuted;
     }
 
-    // ✅ async로 변경 + setCrazyGamesUser 호출
     public async startNewGameSession(): Promise<void> {
         const savedName = localStorage.getItem('guest_user_name');
 
@@ -177,14 +205,15 @@ class PLAY extends SceneX {
             );
         }
 
-        // ✅ 🔥 핵심 수정: Firebase 세션 초기화
         console.log('🔹 Firebase 세션 생성 시작');
         await API_CONNECTOR.setCrazyGamesUser({
             userId: this.currentId,
             username: this.currentUsername,
-            countryCode: 'KR', // 기본값 (필요시 변경)
+            countryCode: 'KR',
             profilePicture: null,
         });
         console.log('✅ Firebase 세션 생성 완료');
     }
 }
+
+export default PLAY;

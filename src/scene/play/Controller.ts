@@ -7,43 +7,68 @@ import View from './View';
 
 class Controller extends ContainerX {
     private bActive: boolean = true;
+    private view: View;
 
     constructor($view: View) {
         super();
+        this.view = $view;
 
         this.enableInput();
-        this.bindStageEvents($view);
+        this.bindStageEvents();
     }
 
     private enableInput(): void {
         const stage = this.system.stage;
-
-        // 모바일 터치 활성화 (PC에서도 문제 없음)
         createjs.Touch.enable(stage, true);
-
-        // 모바일에서 hover 의미 없고 성능 이슈 방지
         stage.enableMouseOver(0);
-
-        // 드래그 중 캔버스 밖 나가도 이벤트 유지 (선택)
         stage.mouseMoveOutside = true;
     }
 
-    private bindStageEvents($view: View): void {
+    /**
+     * 핸들러들을 화살표 함수 프로퍼티로 정의 (자동 바인딩 및 참조 보존)
+     */
+    private handleMouseDown = (e: createjs.MouseEvent) => {
         if (!this.bActive) return;
+        this.view.interaction_DOWN(e.stageX, e.stageY);
+    };
 
+    private handleMouseMove = (e: createjs.MouseEvent) => {
+        if (!this.bActive) return;
+        this.view.interaction_MOVE(e.stageX, e.stageY);
+    };
+
+    private handleMouseUp = (e: createjs.MouseEvent) => {
+        if (!this.bActive) return;
+        this.view.interaction_UP(e.stageX, e.stageY);
+    };
+
+    private bindStageEvents(): void {
         const stage = this.system.stage;
 
-        stage.on('stagemousedown', (e: createjs.MouseEvent) => {
-            $view.interaction_DOWN(e.stageX, e.stageY);
-        });
+        // on으로 등록 (참조: handleMouseDown)
+        stage.on('stagemousedown', this.handleMouseDown);
+        stage.on('stagemousemove', this.handleMouseMove);
+        stage.on('stagemouseup', this.handleMouseUp);
+    }
 
-        stage.on('stagemousemove', (e: createjs.MouseEvent) => {
-            $view.interaction_MOVE(e.stageX, e.stageY);
-        });
+    /**
+     * 리소스 해제
+     */
+    public dispose(): void {
+        const stage = this.system.stage;
 
-        stage.on('stagemouseup', (e: createjs.MouseEvent) => {
-            $view.interaction_UP(e.stageX, e.stageY);
-        });
+        if (stage) {
+            // 등록했던 동일한 참조로 off 호출
+            stage.off('stagemousedown', this.handleMouseDown);
+            stage.off('stagemousemove', this.handleMouseMove);
+            stage.off('stagemouseup', this.handleMouseUp);
+        }
+
+        this.bActive = false;
+        // 추가적으로 필요한 정리 로직 (예: view 참조 제거)
+        // this.view = null;
+
+        console.log('🧹 Controller - Input Events Off 완료');
     }
 }
 

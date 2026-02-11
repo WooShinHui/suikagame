@@ -85,7 +85,7 @@ export interface AppConfig {
 
 class CoreApp extends BaseComponentExtends {
     private _canvas: HTMLCanvasElement;
-    private _stage: createjs.Stage;
+    public _stage: createjs.Stage;
 
     public sceneContainer: ContainerX;
     public bottomContainer: ContainerX;
@@ -206,7 +206,7 @@ class CoreApp extends BaseComponentExtends {
     get stage(): createjs.Stage {
         return this._stage;
     }
-    private handleResize(): void {
+    public handleResize(): void {
         const canvas = SystemMgr.handle._canvas;
         if (!canvas) return;
 
@@ -219,12 +219,9 @@ class CoreApp extends BaseComponentExtends {
         canvas.width = sw * dpr;
         canvas.height = sh * dpr;
 
-        // ✅ 세로 높이에 딱 맞춰 스케일 적용
         this._stage.scaleX = this._stage.scaleY = UIScale.scale * dpr;
-
-        // ✅ 가로 중앙 정렬 (양옆 레터박스 생성)
         this._stage.x = UIScale.canvasOffsetX * UIScale.scale * dpr;
-        this._stage.y = 0; // 세로는 항상 꽉 차있음
+        this._stage.y = 0;
 
         this._stage.update();
     }

@@ -55,7 +55,7 @@ export class Option extends DomX {
 
         const bgmVolume = savedBGM !== null ? Number(savedBGM) : 20;
         const sfxVolume = savedSFX !== null ? Number(savedSFX) : 50;
-        const bgmSrc = savedBgmSrc || '/assets/sounds/bgm.mp3';
+        const bgmSrc = savedBgmSrc || 'assets/sounds/RETRO.mp3';
 
         // SoundMgr에 적용
         SoundMgr.handle.bgmVolume = savedBgmMuted ? 0 : bgmVolume / 100;
@@ -68,7 +68,7 @@ export class Option extends DomX {
             const currentBgmVolume = Number(
                 localStorage.getItem('bgmVolume') || 20
             );
-            const newBgmSrc = `/${src.data}`;
+            const newBgmSrc = `./${src.data}`;
             localStorage.setItem('bgm', newBgmSrc);
             SoundMgr.handle.playBGM(newBgmSrc, currentBgmVolume);
         });
@@ -121,7 +121,7 @@ export class Option extends DomX {
         Object.assign(this.panel.style, {
             position: 'relative',
             background:
-                'url("/assets/images/option.png") center/cover no-repeat',
+                'url("./assets/images/option.png") center/cover no-repeat',
             borderRadius: '24px',
             display: 'flex',
             flexDirection: 'column',
@@ -213,8 +213,8 @@ export class Option extends DomX {
                 // 아이콘: 음소거 상태 또는 0일 때 off
                 this.bgmMuteBtn.style.backgroundImage =
                     muted || v === 0
-                        ? 'url("/assets/images/sound_off.png")'
-                        : 'url("/assets/images/sound_on.png")';
+                        ? 'url("./assets/images/sound_off.png")'
+                        : 'url("./assets/images/sound_on.png")';
             }
         );
 
@@ -234,8 +234,8 @@ export class Option extends DomX {
                 // 아이콘: 음소거 상태 또는 0일 때 off
                 this.sfxMuteBtn.style.backgroundImage =
                     muted || v === 0
-                        ? 'url("/assets/images/sound_off.png")'
-                        : 'url("/assets/images/sound_on.png")';
+                        ? 'url("./assets/images/sound_off.png")'
+                        : 'url("./assets/images/sound_on.png")';
             }
         );
 
@@ -367,8 +367,8 @@ export class Option extends DomX {
             if (muteBtn) {
                 muteBtn.style.backgroundImage =
                     val === 0
-                        ? 'url("/assets/images/sound_off.png")'
-                        : 'url("/assets/images/sound_on.png")';
+                        ? 'url("./assets/images/sound_off.png")'
+                        : 'url("./assets/images/sound_on.png")';
             }
 
             onChange(val);
@@ -410,8 +410,8 @@ export class Option extends DomX {
 
     private updateMuteIcon(btn: HTMLButtonElement, muted: boolean) {
         btn.style.backgroundImage = muted
-            ? 'url("/assets/images/sound_off.png")'
-            : 'url("/assets/images/sound_on.png")';
+            ? 'url("./assets/images/sound_off.png")'
+            : 'url("./assets/images/sound_on.png")';
     }
     private updateSliderStyle(
         input: HTMLInputElement,
@@ -442,8 +442,8 @@ export class Option extends DomX {
             ) as HTMLButtonElement);
         if (btn) {
             btn.style.backgroundImage = isZero
-                ? 'url("/assets/images/sound_off.png")'
-                : 'url("/assets/images/sound_on.png")';
+                ? 'url("./assets/images/sound_off.png")'
+                : 'url("./assets/images/sound_on.png")';
         }
     }
 
