@@ -1,7 +1,8 @@
+// src/scenes/play/Score.ts
 import ContainerX from '../../core/ContainerX';
-import { EVT_HUB, G_EVT } from '../../events/EVT_HUB';
+import { G_EVT } from '../../events/EVT_HUB';
 import { EVT_HUB_SAFE } from '../../events/SafeEventHub';
-import { UIScale, SAFE_WIDTH } from '../../ui/UIScale';
+import { UIScale, CANVAS_ORIGINAL_WIDTH } from '../../ui/UIScale';
 
 export class Score extends ContainerX {
     private currentScore: number = 0;
@@ -12,31 +13,70 @@ export class Score extends ContainerX {
         super();
         this.buildScoreDisplay();
         this.addEventListeners();
+        this.applyResize();
+        window.addEventListener('resize', () => this.applyResize());
     }
 
     private buildScoreDisplay(): void {
-        // 🔹 mScore 무비클립 가져오기
         this.scoreRoot = this.resource.getLibrary(
             'circle_2',
             'mScore'
         ) as createjs.MovieClip;
         this.addChild(this.scoreRoot);
-        this.scoreRoot.scaleX = 0.8;
-        this.scoreRoot.scaleY = 0.8;
+
         for (let i = 0; i <= 3; i++) {
             const clip = this.scoreRoot.getChildByName(
                 `n${i}`
             ) as createjs.MovieClip;
             if (clip) {
-                clip.gotoAndStop(0); // 초기 프레임 (0)
-                this.digitClips.push(clip); // ← push로 순서 유지
+                clip.gotoAndStop(0);
+                this.digitClips.push(clip);
             }
         }
+    }
 
-        // ✅ Safe Area 기준 좌표 (중앙 상단)
-        // 원본: x=240, y=80
-        this.scoreRoot.x = UIScale.safeToCanvasX(SAFE_WIDTH / 2 - 100); // 중앙에서 조금 왼쪽
-        this.scoreRoot.y = UIScale.safeToCanvasY(40);
+    private applyResize(): void {
+        UIScale.update();
+
+        const sw = window.innerWidth;
+        const sh = window.innerHeight;
+
+        // ✅ 위치는 항상 Canvas 중앙 고정 (900x1600 기준)
+        const canvasX = CANVAS_ORIGINAL_WIDTH / 2;
+        const canvasY = 260;
+
+        this.scoreRoot.x = canvasX;
+        this.scoreRoot.y = canvasY;
+
+        // ✅ 화면 비율에 따라 크기만 조정
+        const aspectRatio = sw / sh;
+        const targetAspectRatio = 9 / 16;
+
+        if (aspectRatio < targetAspectRatio) {
+            // 가로가 좁을 때: 크기 축소 (0.6 ~ 0.8)
+            const scale = UIScale.scale;
+            const canvasRenderWidth = CANVAS_ORIGINAL_WIDTH * scale;
+            const canvasLeft = (sw - canvasRenderWidth) / 2;
+
+            if (canvasLeft < 0) {
+                // Canvas가 잘릴 때만 크기 축소
+                const visibleRatio = sw / (CANVAS_ORIGINAL_WIDTH * scale);
+                const targetScale = Math.max(
+                    0.5,
+                    Math.min(0.9, 0.9 * visibleRatio)
+                );
+                this.scoreRoot.scaleX = targetScale;
+                this.scoreRoot.scaleY = targetScale;
+            } else {
+                // 잘리지 않으면 기본 크기
+                this.scoreRoot.scaleX = 0.9;
+                this.scoreRoot.scaleY = 0.9;
+            }
+        } else {
+            // 화면이 넓을 때: 기본 크기
+            this.scoreRoot.scaleX = 0.9;
+            this.scoreRoot.scaleY = 0.9;
+        }
     }
 
     private addEventListeners(): void {
@@ -59,10 +99,9 @@ export class Score extends ContainerX {
     }
 
     private updateDisplay(): void {
-        const digits = this.currentScore.toString().split('').reverse(); // 1의 자리부터 접근
+        const digits = this.currentScore.toString().split('').reverse();
         const totalDigits = digits.length;
 
-        // 전부 숨기지 않고 0 프레임으로 초기화
         for (const clip of this.digitClips) {
             clip.gotoAndStop(1);
         }
@@ -71,9 +110,9 @@ export class Score extends ContainerX {
             const clip = this.digitClips[i];
             if (i < totalDigits) {
                 const digit = parseInt(digits[i]);
-                clip.gotoAndStop(digit); // FLA는 frame1 = 0, frame10 = 9
+                clip.gotoAndStop(digit);
             } else {
-                clip.gotoAndStop(0); // 남는 자리 0으로
+                clip.gotoAndStop(0);
             }
         }
     }

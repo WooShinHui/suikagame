@@ -1,8 +1,13 @@
+// src/scenes/play/RandomMerge.ts
 import PureDomX from '../../core/PureDomX';
 import { G_EVT } from '../../events/EVT_HUB';
 import { EVT_HUB_SAFE } from '../../events/SafeEventHub';
 import { API_CONNECTOR } from '../../fetch/ApiConnector';
-import { UIScale } from '../../ui/UIScale';
+import {
+    UIScale,
+    CANVAS_ORIGINAL_WIDTH,
+    CANVAS_ORIGINAL_HEIGHT,
+} from '../../ui/UIScale';
 import View from './View';
 
 export class RandomMerge extends PureDomX {
@@ -12,8 +17,8 @@ export class RandomMerge extends PureDomX {
     private btnElement!: HTMLButtonElement;
     private countDisplay!: HTMLDivElement;
 
-    private readonly IMG_NORMAL = './assets/images/bt_merge_s.png';
-    private readonly IMG_PRESSED = './assets/images/bt_merge_n.png';
+    private readonly IMG_NORMAL = './assets/images/Random_Merge_s.png';
+    private readonly IMG_PRESSED = './assets/images/Random_Merge_n.png';
 
     constructor(private view: View) {
         if (RandomMerge.instance) return RandomMerge.instance;
@@ -40,43 +45,26 @@ export class RandomMerge extends PureDomX {
         const parent = canvas?.parentElement || document.body;
         parent.appendChild(this.htmlElement);
 
-        // ✅ Firebase 세션에서 아이템 개수 받기
         EVT_HUB_SAFE.on(G_EVT.PLAY.SESSION_STARTED, (event: any) => {
             const data = event.data;
             if (data.isServerVerified) {
                 this.count = Math.min(data.itemCount || 0, this.MAX_ITEM_COUNT);
                 this.updateButtonVisual();
-                console.log('🎮 아이템 초기화:', this.count);
             }
         });
 
-        // ❌ 제거: MERGE_SUCCESS 시 동기화 (불필요)
-
-        // ✅ 리셋 시 아이템 재충전
         EVT_HUB_SAFE.on(G_EVT.PLAY.MERGE_RESET, async () => {
             if (this.count >= this.MAX_ITEM_COUNT) {
-                console.log('⚠️ 아이템이 이미 최대 개수입니다:', this.count);
                 return;
             }
-
-            // 🚀 즉시 UI 업데이트
             this.count = Math.min(this.count + 1, this.MAX_ITEM_COUNT);
             this.updateButtonVisual();
-            console.log('🎁 아이템 재충전:', this.count);
-
-            // 📡 Firebase는 백그라운드 처리
             API_CONNECTOR.requestItemReward();
         });
 
-        // ✅ 머지 실패 시 아이템 환불
         EVT_HUB_SAFE.on(G_EVT.PLAY.MERGE_FAIL, () => {
-            console.warn('❌ 머지 실패: 아이템 환불');
-
-            // 🚀 즉시 UI 복구
             this.count = Math.min(this.count + 1, this.MAX_ITEM_COUNT);
             this.updateButtonVisual();
-
-            // 📡 Firebase는 백그라운드 처리
             API_CONNECTOR.refundGiftItem();
         });
 
@@ -84,13 +72,11 @@ export class RandomMerge extends PureDomX {
         RandomMerge.instance = this;
     }
 
-    // ✅ 게임 시작/리셋 시에만 동기화
     public async reset() {
         const itemCount = await API_CONNECTOR.getItemCount();
         if (itemCount !== null) {
             this.count = Math.min(itemCount, this.MAX_ITEM_COUNT);
             this.updateButtonVisual();
-            console.log('🔄 아이템 초기화:', this.count);
         }
     }
 
@@ -119,7 +105,7 @@ export class RandomMerge extends PureDomX {
             cursor: 'pointer',
             userSelect: 'none',
             pointerEvents: 'auto',
-            zIndex: '1000',
+            zIndex: '100',
             transform: 'scale(1)',
         });
 
@@ -141,7 +127,7 @@ export class RandomMerge extends PureDomX {
             boxShadow: '0 2px 8px rgba(255, 59, 48, 0.4)',
             border: '2px solid white',
             pointerEvents: 'none',
-            zIndex: '1001',
+            zIndex: '101',
         });
         this.countDisplay.textContent = '0';
 
@@ -167,37 +153,25 @@ export class RandomMerge extends PureDomX {
     private clickEvent() {
         this.btnElement.onclick = () => {
             if (this.count <= 0) {
-                console.log('⚠️ 아이템이 없습니다');
                 return;
             }
 
-            // 🚀 1️⃣ 즉시 로컬 차감 + 머지 실행 (0ms 지연)
             this.count = Math.max(0, this.count - 1);
             this.updateButtonVisual();
             EVT_HUB_SAFE.emit(G_EVT.PLAY.MERGE_REQUEST);
-            console.log('✨ 머지 실행 (낙관적 업데이트)');
 
-            // 📡 2️⃣ Firebase는 백그라운드 처리 (결과를 기다리지 않음)
             API_CONNECTOR.useGiftItem()
                 .then((success) => {
                     if (!success) {
-                        // 실패 시 롤백
-                        console.error('❌ Firebase 아이템 사용 실패 - 롤백');
                         this.count = Math.min(
                             this.count + 1,
                             this.MAX_ITEM_COUNT
                         );
                         this.updateButtonVisual();
-
-                        // 머지 취소 이벤트 (필요 시)
-                        // EVT_HUB_SAFE.emit(G_EVT.PLAY.MERGE_CANCEL);
-                    } else {
-                        console.log('✅ Firebase 아이템 차감 완료');
                     }
                 })
                 .catch((error) => {
                     console.error('❌ Firebase 오류:', error);
-                    // 네트워크 오류 시에도 롤백
                     this.count = Math.min(this.count + 1, this.MAX_ITEM_COUNT);
                     this.updateButtonVisual();
                 });
@@ -205,26 +179,75 @@ export class RandomMerge extends PureDomX {
     }
 
     private applyResize() {
-        const size = UIScale.getResponsiveSize(80, 50, 70);
-        const marginX = UIScale.getResponsiveMargin(20);
-        const marginY = UIScale.getResponsiveMargin(120);
+        UIScale.update();
 
-        UIScale.layoutElementViewport(
-            this.btnElement,
-            'left',
-            'top',
-            marginX,
-            marginY,
-            size,
-            size
-        );
+        const sw = window.innerWidth;
+        const sh = window.innerHeight;
+        const scale = UIScale.scale;
 
-        const badgeSize = size * 0.25;
-        this.countDisplay.style.width = `${badgeSize}px`;
-        this.countDisplay.style.height = `${badgeSize}px`;
-        this.countDisplay.style.fontSize = `${badgeSize * 0.5}px`;
-        this.countDisplay.style.top = `${-badgeSize * 0.3}px`;
-        this.countDisplay.style.right = `${-badgeSize * 0.3}px`;
+        // 1. 기준 비율 및 현재 비율 계산
+        const targetRatio = 9 / 16;
+        const currentRatio = sw / sh;
+
+        // ✅ 가로가 좁아지면 반응하는 비율
+        const ratioScale =
+            currentRatio < targetRatio ? currentRatio / targetRatio : 1;
+        const sizeScale = Math.max(0.5, ratioScale);
+
+        // 2. 캔버스 렌더링 영역 및 오프셋 계산
+        const canvasRenderWidth = CANVAS_ORIGINAL_WIDTH * scale;
+        const canvasRenderHeight = CANVAS_ORIGINAL_HEIGHT * scale;
+        const canvasTop = (sh - canvasRenderHeight) / 2; // 캔버스의 실제 상단 시작점
+
+        // 3. 버튼 크기 계산 (271x172 비율)
+        const imgAspectRatio = 172 / 271;
+        const baseWidth = 200;
+        const buttonWidth = baseWidth * scale * sizeScale;
+        const buttonHeight = buttonWidth * imgAspectRatio;
+
+        // 4. 좌표 계산
+        const canvasX = 60;
+        const canvasY = 220;
+
+        // ✅ 가로(X): 화면 중앙 기준에서 ratioScale에 따라 수평 이동
+        const distanceFromCenter =
+            (CANVAS_ORIGINAL_WIDTH / 2 - canvasX) * scale * ratioScale;
+        let screenX = sw / 2 - distanceFromCenter;
+
+        // ✅ 세로(Y): ratioScale을 제거하여 위아래 이동을 막고 위치 고정
+        let screenY = canvasTop + canvasY * scale;
+
+        // 5. 가시 영역(화면 끝) 경계값 보정
+        const margin = 15;
+        const leftLimit = margin;
+        const rightLimit = sw - buttonWidth - margin;
+
+        if (screenX < leftLimit) {
+            screenX = leftLimit;
+        }
+        if (screenX > rightLimit) {
+            screenX = rightLimit;
+        }
+
+        // 6. DOM 스타일 적용
+        Object.assign(this.btnElement.style, {
+            left: `${screenX}px`,
+            top: `${screenY}px`,
+            width: `${buttonWidth}px`,
+            height: `${buttonHeight}px`,
+            position: 'absolute',
+        });
+
+        // 7. 카운트 뱃지 조정
+        const badgeSize = Math.min(buttonWidth, buttonHeight) * 0.35;
+        Object.assign(this.countDisplay.style, {
+            width: `${badgeSize}px`,
+            height: `${badgeSize}px`,
+            fontSize: `${badgeSize * 0.5}px`,
+            top: `${-badgeSize * 0.25}px`,
+            right: `${-badgeSize * 0.25}px`,
+            border: `${Math.max(2, badgeSize * 0.08)}px solid white`,
+        });
     }
 
     public static getInstance(view?: View) {

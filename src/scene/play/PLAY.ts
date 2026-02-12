@@ -4,10 +4,10 @@ import Controller from './Controller';
 import SceneX from '../../core/SceneX';
 import { SoundMgr } from '../../manager/SoundMgr';
 import { EVT_HUB, G_EVT } from '../../events/EVT_HUB';
-import { Result } from '../../result/Result'; // ✅ import 경로 확인
+import { Result } from '../../result/Result';
 import { Option } from '../options/Option';
 import { OptionBtn } from '../options/OptionBtn';
-import { ChangeBgm } from '../options/ChangeBgm';
+import { RankingBtn } from '../options/RankingBtn'; // ✅ 추가
 import { WarningOverlay } from './WarningOverlay';
 import { RandomMerge } from './RandomMerge';
 import { EVT_HUB_SAFE } from '../../events/SafeEventHub';
@@ -15,10 +15,10 @@ import { API_CONNECTOR } from '../../fetch/ApiConnector';
 
 class PLAY extends SceneX {
     private _view!: View | null;
-    private _result!: Result | null; // ✅ 타입 선언
+    private _result!: Result | null;
     private _controller!: Controller | null;
     private _optionBtn!: OptionBtn | null;
-    private _changeBgm!: ChangeBgm | null;
+    private _rankingBtn!: RankingBtn | null; // ✅ 추가
     private _option!: Option | null;
     private _warningOverlay!: WarningOverlay | null;
     private _randomMerge!: RandomMerge | null;
@@ -29,10 +29,10 @@ class PLAY extends SceneX {
     private readonly onLoginSuccess = (event: any) =>
         this.handleLoginSuccess(event);
 
-    private onOpenOption() {
+    private readonly onOpenOption = () => {
         this._option?.buildUI();
         this._option.open();
-    }
+    };
 
     private readonly onRestart = () => {
         this.dispose();
@@ -43,9 +43,7 @@ class PLAY extends SceneX {
         super();
 
         EVT_HUB_SAFE.on(G_EVT.LOGIN.LOGIN_SUCCESS, this.onLoginSuccess);
-        EVT_HUB_SAFE.on(G_EVT.MENU.INGAME_OPEN_OPTION, () => {
-            this.onOpenOption();
-        });
+        EVT_HUB_SAFE.on(G_EVT.MENU.INGAME_OPEN_OPTION, this.onOpenOption);
 
         this.create();
     }
@@ -69,12 +67,13 @@ class PLAY extends SceneX {
     public onMounted(): void {
         console.log('🎮 PLAY.onMounted() 시작');
         EVT_HUB_SAFE.on(G_EVT.RE.START, this.onRestart);
+
         this.buildView();
-        this.buildResult(); // ✅ 추가!
+        this.buildResult();
         this.buildController();
         this.buildOptionBtn();
+        this.buildRankingBtn(); // ✅ 추가
         this.buildOption();
-        this.buildChangeBgm();
         this.buildWarningOverlay();
         this.buildRandomMerge();
 
@@ -83,7 +82,6 @@ class PLAY extends SceneX {
         });
     }
 
-    // PLAY.ts
     public dispose(): void {
         console.log('[PLAY] Scene Dispose: 리스너 및 컴포넌트 정리 시작');
 
@@ -91,7 +89,6 @@ class PLAY extends SceneX {
         EVT_HUB_SAFE.off(G_EVT.MENU.INGAME_OPEN_OPTION, this.onOpenOption);
         EVT_HUB_SAFE.off(G_EVT.RE.START, this.onRestart);
 
-        // ✅ Controller dispose 추가
         if (this._controller) {
             this._controller.dispose();
         }
@@ -107,10 +104,6 @@ class PLAY extends SceneX {
         if (this._result) {
             this._result.dispose();
         }
-        // ✅ RandomMerge도 dispose 필요하면 추가
-        // if (this._randomMerge && typeof this._randomMerge.dispose === 'function') {
-        //     // this._randomMerge.dispose();
-        // }
 
         this.removeAllChildren();
 
@@ -118,7 +111,7 @@ class PLAY extends SceneX {
         this._result = null;
         this._controller = null;
         this._optionBtn = null;
-        this._changeBgm = null;
+        this._rankingBtn = null; // ✅ 추가
         this._option = null;
         this._warningOverlay = null;
         this._randomMerge = null;
@@ -134,8 +127,8 @@ class PLAY extends SceneX {
         this.addChild(this._view);
     }
 
-    // ✅ 추가!
     private buildResult(): void {
+        console.log('🎬 buildResult() 호출');
         if (this._result) {
             console.warn('⚠️ Result 이미 존재함 - 재사용');
             return;
@@ -152,8 +145,9 @@ class PLAY extends SceneX {
         this._optionBtn = new OptionBtn();
     }
 
-    private buildChangeBgm(): void {
-        this._changeBgm = new ChangeBgm();
+    // ✅ 추가
+    private buildRankingBtn(): void {
+        this._rankingBtn = new RankingBtn(this._optionBtn);
     }
 
     private buildWarningOverlay(): void {
@@ -167,7 +161,6 @@ class PLAY extends SceneX {
 
     private buildOption() {
         this._option = new Option(this._view!.scoreDisplay);
-        this.addChild(this._option);
 
         const rawBGM = localStorage.getItem('bgmVolume');
         const bgmVolume = rawBGM !== null ? Number(rawBGM) : 20;

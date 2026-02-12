@@ -31,6 +31,8 @@ export class SoundMgr {
         'deumi',
         'clear',
         'warning',
+        'beads',
+        'btn',
     ];
 
     private _bgmMuted: boolean = false;
@@ -153,25 +155,37 @@ export class SoundMgr {
     /* =======================================================
         Sound Effect (createjs)
     ======================================================= */
-    public playSound(
-        snd: string | createjs.AbstractSoundInstance
-    ): Promise<void> {
+    public playSound(name: string): Promise<void> {
         return new Promise((resolve) => {
-            if (typeof snd === 'string') snd = RscMgr.handle.getSound(snd);
+            const audio = this.soundCache[name];
 
-            const s = snd as createjs.AbstractSoundInstance;
-            s.volume = this._sfxVolume;
-            s.muted = this._sfxMuted;
-            s.play();
+            if (!audio) {
+                console.warn(
+                    `[SoundMgr] ${name} 사운드를 캐시에서 찾을 수 없습니다.`
+                );
+                resolve();
+                return;
+            }
 
-            const duration = s.duration;
-            const dummy = {};
+            // 기존 재생 중이면 처음으로 되감기
+            audio.currentTime = 0;
+            audio.volume = this._sfxVolume;
+            audio.muted = this._sfxMuted;
 
-            const tween = createjs.Tween.get(dummy)
-                .wait(duration)
-                .call(() => resolve());
+            // 재생 완료 시 Promise resolve
+            const onEnded = () => {
+                audio.removeEventListener('ended', onEnded);
+                resolve();
+            };
+            audio.addEventListener('ended', onEnded);
 
-            this._arr_snd.push({ snd: s, tween });
+            audio.play().catch((e) => {
+                console.error('재생 실패:', e);
+                resolve();
+            });
+
+            // (선택 사항) 중단 관리를 위해 배열에 보관하고 싶다면
+            // ISound 인터페이스를 HTMLAudioElement를 지원하도록 수정해야 합니다.
         });
     }
 
@@ -180,7 +194,19 @@ export class SoundMgr {
     ======================================================= */
     private preloadSfx() {
         this.SOUND_TABLE.forEach((name) => {
-            const audio = new Audio(`assets/sounds/${name}.mp3`);
+            // beads와 btn은 로그상 .wav 파일입니다. 나머지는 .mp3로 가정합니다.
+            const isWav = ['beads', 'btn'].includes(name);
+            const ext = isWav ? 'wav' : 'mp3';
+
+            const audio = new Audio(`assets/sounds/${name}.${ext}`);
+
+            // 에러 핸들링 추가: 로드 실패 시 로그 출력
+            audio.onerror = () => {
+                console.error(
+                    `[SoundMgr] 파일 로드 실패: assets/sounds/${name}.${ext}`
+                );
+            };
+
             audio.preload = 'auto';
             audio.volume = this._sfxVolume;
             audio.muted = this._sfxMuted;

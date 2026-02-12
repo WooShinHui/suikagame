@@ -1,11 +1,15 @@
+// src/scene/options/OptionBtn.ts
 import { EVT_HUB_SAFE } from '../../events/SafeEventHub';
 import { G_EVT } from '../../events/EVT_HUB';
 import PureDomX from '../../core/PureDomX';
 import { SoundMgr } from '../../manager/SoundMgr';
-import { UIScale } from '../../ui/UIScale';
+import {
+    UIScale,
+    CANVAS_ORIGINAL_WIDTH,
+    CANVAS_ORIGINAL_HEIGHT,
+} from '../../ui/UIScale';
 
 export class OptionBtn extends PureDomX {
-    // ✅ 변경
     private btn!: HTMLButtonElement;
 
     constructor() {
@@ -74,21 +78,65 @@ export class OptionBtn extends PureDomX {
     }
 
     private applyResize() {
-        // ✅ 비율 기반 크기
-        const size = UIScale.getResponsiveSize(50, 40, 60);
+        UIScale.update();
 
-        // ✅ 비율 기반 마진
-        const marginX = UIScale.getResponsiveMargin(20);
-        const marginY = UIScale.getResponsiveMargin(20);
+        const sw = window.innerWidth;
+        const sh = window.innerHeight;
+        const scale = UIScale.scale;
 
-        UIScale.layoutElementViewport(
-            this.btn,
-            'right',
-            'top',
-            marginX,
-            marginY,
-            size,
-            size
+        // Canvas 렌더링 영역
+        const canvasRenderWidth = CANVAS_ORIGINAL_WIDTH * scale;
+
+        // Canvas 화면 위치
+        const canvasLeft = (sw - canvasRenderWidth) / 2;
+        const canvasTop = 0;
+
+        // Canvas 논리 좌표
+        const canvasX = 20;
+        const canvasY = 20;
+        const buttonSize = 100 * scale;
+
+        // Canvas 좌표 → 화면 좌표
+        let screenX = canvasLeft + canvasX * scale;
+        let screenY = canvasTop + canvasY * scale;
+
+        // ✅ 화면 비율 체크
+        const aspectRatio = sw / sh;
+        const targetAspectRatio = 9 / 16;
+
+        // 가로가 좁을 때만 조정
+        if (aspectRatio < targetAspectRatio) {
+            const canvasVisibleLeft = Math.max(0, canvasLeft);
+            const canvasVisibleRight = Math.min(
+                sw,
+                canvasLeft + canvasRenderWidth
+            );
+
+            const margin = 10;
+
+            if (screenX < canvasVisibleLeft) {
+                screenX = canvasVisibleLeft + margin;
+            }
+
+            if (screenX + buttonSize > canvasVisibleRight) {
+                screenX = canvasVisibleRight - buttonSize - margin;
+            }
+        }
+
+        this.btn.style.left = `${screenX}px`;
+        this.btn.style.top = `${screenY}px`;
+        this.btn.style.width = `${buttonSize}px`;
+        this.btn.style.height = `${buttonSize}px`;
+    }
+
+    // ✅ RankingBtn에서 참조할 수 있도록 위치 반환
+    public getButtonRight(): number {
+        return (
+            parseFloat(this.btn.style.left) + parseFloat(this.btn.style.width)
         );
+    }
+
+    public getButtonTop(): number {
+        return parseFloat(this.btn.style.top);
     }
 }

@@ -17,58 +17,5 @@
             "src": "assets/images/bg.png"
         }
     ],
-    "sounds": [
-        {
-            "key": "beads",
-            "src": "assets/sounds/beads.wav"
-        },
-        {
-            "key": "beori",
-            "src": "assets/sounds/beori.mp3"
-        },
-        {
-            "key": "btn",
-            "src": "assets/sounds/btn.wav"
-        },
-        {
-            "key": "deumi",
-            "src": "assets/sounds/deumi.mp3"
-        },
-        {
-            "key": "tori",
-            "src": "assets/sounds/tori.mp3"
-        },
-        {
-            "key": "dogi",
-            "src": "assets/sounds/dogi.mp3"
-        },
-        {
-            "key": "nyangi",
-            "src": "assets/sounds/nyangi.mp3"
-        },
-        {
-            "key": "pu_0",
-            "src": "assets/sounds/pu_0.mp3"
-        },
-        {
-            "key": "pu_1",
-            "src": "assets/sounds/pu_1.mp3"
-        },
-        {
-            "key": "pu_2",
-            "src": "assets/sounds/pu_2.mp3"
-        },
-        {
-            "key": "pu_3",
-            "src": "assets/sounds/pu_3.mp3"
-        },
-        {
-            "key": "pu_4",
-            "src": "assets/sounds/pu_4.mp3"
-        },
-        {
-            "key": "warning",
-            "src": "assets/sounds/warning.mp3"
-        }
-    ]
+    "sounds": []
 }

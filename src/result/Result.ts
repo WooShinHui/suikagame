@@ -28,7 +28,7 @@ export class Result {
     constructor() {
         const canvas = document.querySelector('canvas') as HTMLCanvasElement;
         const parent = canvas?.parentElement || document.body;
-        // 결과 컨테이너
+
         this.resultCt = document.createElement('div');
         this.resultCt.id = 'result-container';
         Object.assign(this.resultCt.style, {
@@ -37,14 +37,15 @@ export class Result {
             left: '0',
             width: '100%',
             height: '100%',
-            background: 'rgba(0, 0, 0, 0.9)',
+            background: 'rgba(0, 0, 0, 0.92)',
             color: 'white',
             display: 'none',
             justifyContent: 'center',
             alignItems: 'center',
             padding: '0',
-            zIndex: '1000',
-            fontFamily: 'Arial, sans-serif',
+            zIndex: '1001',
+            fontFamily:
+                '"SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             boxSizing: 'border-box',
             textAlign: 'center',
         });
@@ -61,11 +62,12 @@ export class Result {
 
         EVT_HUB_SAFE.on(G_EVT.PLAY.SESSION_STARTED, this._onSessionStarted);
         EVT_HUB_SAFE.on(G_EVT.PLAY.GAME_OVER, this._onGameOver);
-        EVT_HUB_SAFE.on(G_EVT.PLAY.SHOW_RESULT, this._onShowResult); // <-- 여기 수정!
+        EVT_HUB_SAFE.on(G_EVT.PLAY.SHOW_RESULT, this._onShowResult);
         EVT_HUB_SAFE.on(G_EVT.DATA.SCORE_UPDATED, this._onScoreUpdated);
         window.addEventListener('resize', this._onResize);
         this.handleResize();
     }
+
     private handleSessionStarted(event: any) {
         const data = event.data || {};
         this.currentUserId = data.userId;
@@ -88,44 +90,33 @@ export class Result {
         this.resultCt.style.top = `${canvas.offsetTop}px`;
         this.resultCt.style.left = `${canvas.offsetLeft}px`;
     }
+
     public dispose() {
         console.log('🧹 Result - 리소스 해제 (dispose)');
-
-        // 이벤트 허브 해제
         EVT_HUB_SAFE.off(G_EVT.PLAY.SESSION_STARTED, this._onSessionStarted);
         EVT_HUB_SAFE.off(G_EVT.PLAY.GAME_OVER, this._onGameOver);
         EVT_HUB_SAFE.off(G_EVT.PLAY.SHOW_RESULT, this._onShowResult);
         EVT_HUB_SAFE.off(G_EVT.DATA.SCORE_UPDATED, this._onScoreUpdated);
-
-        // 윈도우 이벤트 해제
         window.removeEventListener('resize', this._onResize);
 
-        // DOM 제거 (선택 사항)
         if (this.resultCt && this.resultCt.parentElement) {
             this.resultCt.parentElement.removeChild(this.resultCt);
         }
     }
-    // ✅ 반응형 픽셀 계산 (화면 너비 기준)
+
+    // ✅ 폰트 크기 계산
     private px(baseSize: number): number {
         const sw = window.innerWidth;
-        const baseWidth = 720; // 기준 너비 (Safe Area)
-        return Math.max(10, (baseSize * sw) / baseWidth);
+        const baseWidth = 720;
+        return Math.max(8, (baseSize * sw) / baseWidth);
     }
 
     private async handleGameOver(event: any): Promise<void> {
         const evData = event.data || {};
-
-        console.log('🎮 handleGameOver 실행');
-        console.log('  - 이벤트 데이터:', evData);
-        console.log('  - 현재 userId:', this.currentUserId);
-
         if (typeof evData.finalScore === 'number') {
             this.finalScore = evData.finalScore;
         }
 
-        console.log('  - 최종 점수:', this.finalScore);
-
-        console.log('📤 REQUEST_COLLISION_SAVE 이벤트 발행');
         EVT_HUB_SAFE.emit(G_EVT.PLAY.REQUEST_COLLISION_SAVE, {
             finalScore: this.finalScore,
             userId: this.currentUserId,
@@ -138,15 +129,10 @@ export class Result {
         event: any,
         type: 'GAME_OVER' | 'START'
     ): Promise<void> {
-        if (this.isShowing) {
-            console.log('⚠️ 이미 결과 표시 중 - 무시');
-            return;
-        }
+        if (this.isShowing) return;
         this.isShowing = true;
 
         const isRankingOnly = type === 'START';
-
-        console.log('📊 showResult 시작:', { type, event });
 
         if (!isRankingOnly) {
             const eventData = event?.data || {};
@@ -160,16 +146,14 @@ export class Result {
         }
 
         this.resultCt.style.display = 'flex';
-        this.resultCt.innerHTML =
-            '<h2 style="color: white;">랭킹을 불러오는 중...</h2>';
+        this.resultCt.innerHTML = `<h2 style="color: white; font-size: ${this.px(
+            18
+        )}px;">Loading...</h2>`;
 
         try {
-            console.log('📡 Firebase 랭킹 조회 시작...');
             const data = await API_CONNECTOR.getRankingData(
                 this.currentUserId || 'guest'
             );
-
-            console.log('✅ 랭킹 데이터 수신:', data);
 
             this.displayRanking(
                 data.topRankings || [],
@@ -179,7 +163,9 @@ export class Result {
             );
         } catch (err) {
             console.error('❌ 랭킹 로드 에러:', err);
-            this.resultCt.innerHTML = `<p style="color: red;">랭킹 로드 실패: ${err.message}</p>`;
+            this.resultCt.innerHTML = `<p style="color: red; font-size: ${this.px(
+                14
+            )}px;">Failed to load rankings</p>`;
         } finally {
             this.isShowing = false;
         }
@@ -195,31 +181,26 @@ export class Result {
         const isRankingOnly = type === 'START';
         const highScore = previousScore;
         let inner = '';
+
         const oldBtn = this.resultCt.querySelector(
             'button:not(#result-close-btn)'
         );
         if (oldBtn) oldBtn.remove();
-        console.log('🎨 displayRanking 실행:', {
-            topRankings: topRankings.length,
-            myRanking,
-            previousScore,
-            type,
-        });
 
-        const myDisplayName = this.currentUsername || 'Guest Player';
+        const myDisplayName = this.currentUsername || 'Guest';
 
         // ✅ 제목
         inner += `
             <div style="font-size: ${this.px(
-                28
-            )}px; font-weight: bold; color: #fff; margin-bottom: ${this.px(
-            12
-        )}px;">
-                ${isRankingOnly ? '🌍 Global Ranking' : `${myDisplayName}`}
+                20
+            )}px; font-weight: 600; color: #fff; margin-bottom: ${this.px(
+            8
+        )}px; letter-spacing: 0.5px;">
+                ${isRankingOnly ? '🌍 Global Leaderboard' : myDisplayName}
             </div>
         `;
 
-        // ✅ GAME OVER UI
+        // ✅ GAME OVER UI (크기 대폭 축소)
         if (isGameOver) {
             const currentScore = Number(this.finalScore);
             const isNewHighScore = currentScore > highScore;
@@ -228,46 +209,46 @@ export class Result {
             inner += `
             <h2 style="
                 color:${isNewHighScore ? '#ffd700' : '#ffffff'};
-                font-size:${this.px(36)}px;
-                margin-bottom:${this.px(12)}px;
-                letter-spacing:1px;
-                text-shadow:0 0 12px rgba(255, 251, 0, 0.6);
+                font-size:${this.px(22)}px;
+                margin-bottom:${this.px(8)}px;
+                letter-spacing:0.5px;
+                text-shadow:0 0 8px rgba(255, 251, 0, 0.4);
                 font-weight:700;
             ">
-                ${isNewHighScore ? '🏆 NEW HIGH SCORE!' : 'GAME OVER'}
+                ${isNewHighScore ? '🏆 NEW RECORD!' : 'GAME OVER'}
             </h2>
     
             <div style="
-                margin:0 auto ${this.px(15)}px auto;
-                max-width:${this.px(450)}px;
+                margin:0 auto ${this.px(10)}px auto;
+                max-width:${this.px(320)}px;
                 display:flex;
                 justify-content:space-around;
                 text-align:center;
-                border-radius:${this.px(10)}px;
-                padding:${this.px(12)}px;
-                background:rgba(0,0,0,0.35);
-                backdrop-filter: blur(8px);
-                border:1px solid rgba(255,255,255,0.08);
+                border-radius:${this.px(6)}px;
+                padding:${this.px(8)}px;
+                background:rgba(0,0,0,0.4);
+                backdrop-filter: blur(6px);
+                border:1px solid rgba(255,255,255,0.1);
             ">
                 <div style="flex:1;">
                     <p style="font-size:${this.px(
-                        16
-                    )}px; color:#bbbbbb; margin:${this.px(
-                4
-            )}px 0; font-weight:600;">SCORE</p>
+                        11
+                    )}px; color:#aaa; margin:${this.px(
+                2
+            )}px 0; font-weight:500; letter-spacing:0.3px;">SCORE</p>
                     <p style="font-size:${this.px(
-                        32
+                        20
                     )}px; font-weight:700; margin:0;">${currentScore.toLocaleString()}</p>
                 </div>
     
-                <div style="flex:1; border-left:1px solid rgba(255,255,255,0.08);">
+                <div style="flex:1; border-left:1px solid rgba(255,255,255,0.1);">
                     <p style="font-size:${this.px(
-                        16
-                    )}px; color:#bbbbbb; margin:${this.px(
-                4
-            )}px 0; font-weight:600;">BEST</p>
+                        11
+                    )}px; color:#aaa; margin:${this.px(
+                2
+            )}px 0; font-weight:500; letter-spacing:0.3px;">BEST</p>
                     <p style="font-size:${this.px(
-                        32
+                        20
                     )}px; font-weight:700; margin:0; color:${
                 isNewHighScore ? '#00ff88' : '#66ffcc'
             };">
@@ -278,41 +259,65 @@ export class Result {
             `;
         }
 
+        // ✅ 내 랭킹 표시 (TOP 20 밖일 경우)
+        if (myRanking && myRanking.rank > 20) {
+            inner += `
+            <div style="
+                margin:${this.px(8)}px auto;
+                max-width:${this.px(320)}px;
+                padding:${this.px(6)}px ${this.px(10)}px;
+                background:rgba(0,255,255,0.1);
+                border:1px solid rgba(0,255,255,0.3);
+                border-radius:${this.px(4)}px;
+                font-size:${this.px(12)}px;
+                color:#00ffff;
+            ">
+                Your Rank: #${
+                    myRanking.rank
+                } · ${myRanking.total_score.toLocaleString()} pts
+            </div>
+            `;
+        }
+
         // ✅ RANKING TABLE
         inner += `
         <h3 style="
-            margin-top:${this.px(15)}px; 
-            font-size:${this.px(24)}px; 
+            margin-top:${this.px(10)}px; 
+            font-size:${this.px(16)}px; 
             color:#00ffcc;
             text-align:center;
-            text-shadow:0 0 8px rgba(0,255,180,0.55);
+            text-shadow:0 0 6px rgba(0,255,180,0.4);
+            font-weight:600;
+            letter-spacing:0.5px;
         ">
-            🌐 Top ${topRankings.length} Players
+            🏆 Top 20
         </h3>
         
         <table style="
             width:100%;
-            max-width:${this.px(700)}px;
-            margin:${this.px(12)}px auto;
+            max-width:${this.px(550)}px;
+            margin:${this.px(8)}px auto;
             border-collapse:collapse;
             text-align:left;
-            font-size:${this.px(18)}px;
-            border-radius:${this.px(8)}px;
+            font-size:${this.px(13)}px;
+            border-radius:${this.px(6)}px;
             overflow:hidden;
-            background:rgba(255,255,255,0.04);
-            backdrop-filter:blur(6px);
+            background:rgba(255,255,255,0.03);
+            backdrop-filter:blur(4px);
             border:1px solid rgba(255,255,255,0.08);
-            box-shadow:0 0 15px rgba(0,255,160,0.25);
+            box-shadow:0 0 12px rgba(0,255,160,0.2);
         ">
         <thead>
-        <tr style="background:rgba(0,120,90,0.7); color:#eafff8; letter-spacing:1px; font-weight:600;">
-            <th style="padding:${this.px(8)}px; width:${this.px(
-            55
-        )}px; text-align:center;">Rank</th>
-            <th style="padding:${this.px(8)}px;">Player</th>
-            <th style="padding:${this.px(8)}px; width:${this.px(
-            90
-        )}px;">Score</th>
+        <tr style="background:rgba(0,120,90,0.6); color:#eafff8; letter-spacing:0.5px; font-weight:600;">
+            <th style="padding:${this.px(5)}px; width:${this.px(
+            40
+        )}px; text-align:center; font-size:${this.px(11)}px;">RANK</th>
+            <th style="padding:${this.px(5)}px; font-size:${this.px(
+            11
+        )}px;">PLAYER</th>
+            <th style="padding:${this.px(5)}px; width:${this.px(
+            75
+        )}px; text-align:right; font-size:${this.px(11)}px;">SCORE</th>
         </tr>
         </thead>
         <tbody>
@@ -329,25 +334,25 @@ export class Result {
         // ✅ 컨테이너
         this.resultCt.innerHTML = `
         <style>
-            #inner-box::-webkit-scrollbar { width: ${this.px(5)}px; }
-            #inner-box::-webkit-scrollbar-track { background: rgba(0, 43, 27, 0.5); border-radius: ${this.px(
-                4
+            #inner-box::-webkit-scrollbar { width: ${this.px(4)}px; }
+            #inner-box::-webkit-scrollbar-track { background: rgba(0, 43, 27, 0.4); border-radius: ${this.px(
+                3
             )}px; }
-            #inner-box::-webkit-scrollbar-thumb { background: rgba(0, 255, 150, 0.3); border-radius: ${this.px(
-                4
+            #inner-box::-webkit-scrollbar-thumb { background: rgba(0, 255, 150, 0.25); border-radius: ${this.px(
+                3
             )}px; }
-            #inner-box::-webkit-scrollbar-thumb:hover { background: rgba(0, 255, 150, 0.6); }
+            #inner-box::-webkit-scrollbar-thumb:hover { background: rgba(0, 255, 150, 0.5); }
         </style>
         <div id="inner-box" style="
-            width: 90%;
-            max-width: ${this.px(900)}px;
-            max-height: 80%;
+            width: 92%;
+            max-width: ${this.px(650)}px;
+            max-height: 85%;
             overflow-y: auto;
-            padding: ${this.px(18)}px;
-            border-radius: ${this.px(12)}px;
-            background: linear-gradient(180deg, #002b1b, #004d2c);
-            border: 2px solid rgba(255,255,255,0.08);
-            box-shadow: 0 0 25px rgba(0,255,150,0.25);
+            padding: ${this.px(12)}px;
+            border-radius: ${this.px(10)}px;
+            background: linear-gradient(180deg, rgba(0,43,27,0.95), rgba(0,77,44,0.95));
+            border: 1.5px solid rgba(255,255,255,0.1);
+            box-shadow: 0 0 20px rgba(0,255,150,0.2);
             text-align: center;
             position: relative;
             color: #fff;
@@ -356,18 +361,21 @@ export class Result {
             <button id="result-close-btn"
                 style="
                     position:absolute;
-                    top:${this.px(10)}px;
-                    right:${this.px(10)}px;
+                    top:${this.px(8)}px;
+                    right:${this.px(8)}px;
                     background:#ff4d4d;
                     color:#fff;
                     border:none;
                     border-radius:50%;
-                    width:${this.px(32)}px;
-                    height:${this.px(32)}px;
+                    width:${this.px(26)}px;
+                    height:${this.px(26)}px;
                     cursor:pointer;
-                    font-size:${this.px(16)}px;
+                    font-size:${this.px(14)}px;
                     font-weight:bold;
-                    box-shadow: 0 0 10px rgba(255,80,80,0.8);
+                    box-shadow: 0 0 8px rgba(255,80,80,0.7);
+                    display:flex;
+                    align-items:center;
+                    justify-content:center;
                 ">
                 ×
             </button>
@@ -387,17 +395,17 @@ export class Result {
         const restartBtn = document.createElement('button');
         Object.assign(restartBtn.style, {
             position: 'absolute',
-            bottom: `${this.px(60)}px`,
+            bottom: `${this.px(40)}px`,
             left: '50%',
             transform: 'translateX(-50%)',
-            width: `${this.px(120)}px`,
-            height: `${this.px(120)}px`,
+            width: `${this.px(80)}px`,
+            height: `${this.px(80)}px`,
             background:
                 'url("./assets/images/btn_re_s.png") no-repeat center center',
             backgroundSize: 'contain',
             border: 'none',
             cursor: 'pointer',
-            filter: 'drop-shadow(0 0 10px #00ffaa)',
+            filter: 'drop-shadow(0 0 8px #00ffaa)',
             transition: 'transform 0.15s',
             zIndex: '1010',
         });
@@ -407,7 +415,6 @@ export class Result {
         if (isGameOver) {
             closeBtn.style.display = 'none';
             restartBtn.onclick = () => {
-                console.log('🔄 재시작 버튼 클릭');
                 EVT_HUB_SAFE.emit(G_EVT.RE.START);
                 this.resultCt.style.display = 'none';
             };
@@ -429,44 +436,40 @@ export class Result {
         }
 
         this.resultCt.style.display = 'flex';
-        console.log('✅ 결과창 표시 완료');
     }
 
     private createRankingRow(entry: RankingEntry, isMe: boolean): string {
         const rank = entry.rank;
-        // 국가 코드가 없으면 'un'(유엔)을 기본값으로 사용
         const countryCode = (entry.countryCode || 'un').toLowerCase();
-        const crown = rank === 1 ? '👑 ' : '';
+        const crown =
+            rank === 1 ? '👑 ' : rank === 2 ? '🥈 ' : rank === 3 ? '🥉 ' : '';
 
-        // ✅ flagcdn 이미지 태그 생성
-        // 40px 너비(w40)의 이미지를 가져오며, 텍스트와 높이를 맞추기 위해 스타일 조정
         const flagImg = `<img src="https://flagcdn.com/w40/${countryCode}.png" 
-                              style="width:${this.px(30)}px; 
+                              style="width:${this.px(18)}px; 
                                      height:auto; 
                                      vertical-align:middle; 
-                                     margin-right:${this.px(6)}px; 
-
-                                     box-shadow: 0 0 4px rgba(0,0,0,0.3);" 
+                                     margin-right:${this.px(4)}px; 
+                                     border-radius:2px;
+                                     box-shadow: 0 0 3px rgba(0,0,0,0.3);" 
                               onerror="this.src='https://flagcdn.com/w40/un.png'"/>`;
 
-        let bg = isMe ? 'rgba(255,255,255,0.12)' : 'transparent';
+        let bg = isMe ? 'rgba(0,255,255,0.15)' : 'transparent';
         let color = isMe ? '#00FFFF' : '#e6fff7';
-        let fontWeight = isMe ? '700' : 'normal';
-        let baseFontSize = isMe ? 20 : 16;
+        let fontWeight = isMe ? '700' : '500';
+        let baseFontSize = 13;
 
-        // 순위별 스타일 차별화
         if (rank === 1) {
             color = '#ffd700';
-            fontWeight = '900';
-            baseFontSize = 22;
+            fontWeight = '800';
+            baseFontSize = 14;
         } else if (rank === 2) {
             color = '#c0c0c0';
-            fontWeight = '800';
-            baseFontSize = 20;
+            fontWeight = '700';
+            baseFontSize = 14;
         } else if (rank === 3) {
             color = '#cd7f32';
-            fontWeight = '800';
-            baseFontSize = 18;
+            fontWeight = '700';
+            baseFontSize = 14;
         }
 
         return `
@@ -475,15 +478,19 @@ export class Result {
                 color:${color};
                 font-weight:${fontWeight};
                 font-size:${this.px(baseFontSize)}px;
-                border-bottom: 1px solid rgba(255,255,255,0.05);
+                border-bottom: 1px solid rgba(255,255,255,0.04);
             ">
-                <td style="padding:${this.px(
-                    10
-                )}px; text-align:center;">${rank}</td>
-                <td style="padding:${this.px(10)}px;">
-                    ${flagImg} ${crown}${entry.username}
+                <td style="padding:${this.px(6)}px ${this.px(
+            4
+        )}px; text-align:center;">${rank}</td>
+                <td style="padding:${this.px(6)}px ${this.px(4)}px;">
+                    ${flagImg}${crown}${entry.username}
                 </td>
-                <td style="padding:${this.px(10)}px; font-family: monospace;">
+                <td style="padding:${this.px(6)}px ${this.px(
+            4
+        )}px; text-align:right; font-family: 'SF Mono', Consolas, monospace; font-size:${this.px(
+            baseFontSize - 1
+        )}px;">
                     ${entry.total_score.toLocaleString()}
                 </td>
             </tr>

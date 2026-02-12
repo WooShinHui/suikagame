@@ -349,7 +349,7 @@ class View extends ContainerX {
     }
 
     private buildGameOverLine(): void {
-        const safeY = 400; // Safe Area 기준 Y 좌표
+        const safeY = 1100; // Safe Area 기준 Y 좌표
 
         // ✅ Canvas 좌표로 변환해서 저장
         this.gameOverLine = UIScale.safeToCanvasY(safeY);

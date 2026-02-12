@@ -215,13 +215,31 @@ export class ApiConnector {
     // ✅ 전체 랭킹 조회
     public async getRankingData(userId: string): Promise<any> {
         try {
-            // 1. 전체 TOP 100 조회 (사용자별 최고 점수)
-            const topRankings = await this.getTopRankings(100);
+            // 1. TOP 20 조회 (읽기 횟수 대폭 감소)
+            const topRankings = await this.getTopRankings(20);
 
-            // 2. 내 랭킹 찾기
-            const myRanking = topRankings.find(
+            // 2. 내 랭킹 찾기 (TOP 20 안에 있으면 바로 사용)
+            let myRanking = topRankings.find(
                 (entry) => entry.userId === userId
             );
+
+            // 3. TOP 20 밖이면 별도 조회
+            if (!myRanking && userId && userId !== 'guest') {
+                const myHighScore = await this.getUserHighScore(userId);
+                if (myHighScore > 0) {
+                    // 내 전체 순위 계산 (간략화)
+                    const higherScoresCount = await this.getHigherScoresCount(
+                        myHighScore
+                    );
+                    myRanking = {
+                        rank: higherScoresCount + 1,
+                        userId: userId,
+                        username: this.currentUsername || 'Guest',
+                        total_score: myHighScore,
+                        countryCode: this.currentCountryCode || 'XX',
+                    };
+                }
+            }
 
             return {
                 topRankings,
@@ -234,17 +252,21 @@ export class ApiConnector {
     }
 
     // ✅ TOP N 랭킹 조회 (사용자별 최고 점수)
-    private async getTopRankings(limitCount: number = 100): Promise<any[]> {
+    private async getTopRankings(limitCount: number = 20): Promise<any[]> {
         try {
-            // 모든 점수 가져오기 (Firestore는 GROUP BY 미지원)
-            const allScoresQuery = query(
+            // 🔥 핵심: 최근 500개만 조회 (비용 절감)
+            // 게임 초기엔 충분하고, 성장하면 Cloud Function으로 전환
+            const recentScoresQuery = query(
                 scoresRef,
-                orderBy('timestamp', 'desc')
+                orderBy('timestamp', 'desc'),
+                limit(500) // ✅ 500개로 제한 (500 읽기 vs 전체 읽기)
             );
 
-            const snapshot = await getDocs(allScoresQuery);
+            const snapshot = await getDocs(recentScoresQuery);
 
-            // 사용자별 최고 점수 계산 (클라이언트에서)
+            console.log(`📊 Firebase 읽기: ${snapshot.docs.length}개 문서`);
+
+            // 사용자별 최고 점수 계산
             const userMaxScores = new Map<string, any>();
 
             snapshot.forEach((docSnapshot) => {
@@ -265,7 +287,7 @@ export class ApiConnector {
                 }
             });
 
-            // 배열로 변환 및 정렬
+            // TOP N만 반환
             const rankings = Array.from(userMaxScores.values())
                 .sort((a, b) => b.total_score - a.total_score)
                 .slice(0, limitCount)
@@ -280,7 +302,43 @@ export class ApiConnector {
             return [];
         }
     }
+    private async getHigherScoresCount(myScore: number): Promise<number> {
+        try {
+            // 최근 500개 중에서만 계산 (근사값)
+            const higherScoresQuery = query(
+                scoresRef,
+                orderBy('score', 'desc'),
+                limit(500)
+            );
 
+            const snapshot = await getDocs(higherScoresQuery);
+
+            const userMaxScores = new Map<string, number>();
+            snapshot.forEach((docSnapshot) => {
+                const data = docSnapshot.data();
+                const userId = data.userId;
+                const score = data.score;
+
+                if (
+                    !userMaxScores.has(userId) ||
+                    userMaxScores.get(userId)! < score
+                ) {
+                    userMaxScores.set(userId, score);
+                }
+            });
+
+            // 내 점수보다 높은 사용자 수 계산
+            let higherCount = 0;
+            userMaxScores.forEach((score) => {
+                if (score > myScore) higherCount++;
+            });
+
+            return higherCount;
+        } catch (error) {
+            console.error('[Firebase] 순위 계산 실패:', error);
+            return 0;
+        }
+    }
     // ✅ 아이템 사용
     public async useGiftItem(): Promise<boolean> {
         try {

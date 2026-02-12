@@ -1,10 +1,23 @@
-import DomX from '../../core/DomX';
+// Option.ts
+import PureDomX from '../../core/PureDomX'; // ✅ DomX → PureDomX
 import { SoundMgr } from '../../manager/SoundMgr';
 import { Score } from '../play/Score';
 import { EVT_HUB_SAFE } from '../../events/SafeEventHub';
 import { G_EVT } from '../../events/EVT_HUB';
 
-export class Option extends DomX {
+const BGM_LIST = [
+    { src: './assets/sounds/HOPEFUL.mp3', title: 'HOPEFUL' },
+    { src: './assets/sounds/RHYTHMIC.mp3', title: 'RHYTHMIC' },
+    { src: './assets/sounds/CHEERFUL.mp3', title: 'CHEERFUL' },
+    { src: './assets/sounds/ENERGETIC.mp3', title: 'ENERGETIC' },
+    { src: './assets/sounds/RETRO.mp3', title: 'RETRO' },
+    { src: './assets/sounds/Happy.mp3', title: 'Happy' },
+    { src: './assets/sounds/Warm.mp3', title: 'Warm' },
+    { src: './assets/sounds/Jazz.mp3', title: 'Jazz' },
+];
+
+export class Option extends PureDomX {
+    // ✅ DomX → PureDomX
     private overlay!: HTMLDivElement;
     private panel!: HTMLDivElement;
     private closeBtn!: HTMLButtonElement;
@@ -15,47 +28,30 @@ export class Option extends DomX {
     private sfxMuteBtn!: HTMLButtonElement;
     private sliderStyle!: HTMLStyleElement;
     private isOpen = false;
-    private syncOverlay!: () => void;
+
+    // ✅ ChangeBgm 관련 추가
+    private btnBgm!: HTMLButtonElement;
+    private titleElement!: HTMLElement;
+    private currentBgmIndex: number = 0;
+    private sparkleInterval: number | null = null;
 
     constructor(private score: Score) {
         super(document.createElement('div'));
 
-        const canvas = document.querySelector('canvas') as HTMLCanvasElement;
-        if (!canvas) return;
-
-        this.syncOverlay = () => {
-            const rect = canvas.getBoundingClientRect();
-            Object.assign(this.htmlElement.style, {
-                position: 'fixed',
-                left: `${rect.left}px`,
-                top: `${rect.top}px`,
-                width: `${rect.width}px`,
-                height: `${rect.height}px`,
-                zIndex: '999',
-                pointerEvents: 'auto',
-            });
-        };
-        const resizeOptionOverlay = () => {
-            const rect = canvas.getBoundingClientRect();
-            Object.assign(this.htmlElement.style, {
-                position: 'fixed',
-                left: `${rect.left}px`,
-                top: `${rect.top}px`,
-                width: `${rect.width}px`,
-                height: `${rect.height}px`,
-                zIndex: '999',
-            });
-        };
-
-        // 로컬스토리지 값 가져오기
+        // ✅ 로컬스토리지에서 BGM 설정 로드
         const savedBGM = localStorage.getItem('bgmVolume');
         const savedSFX = localStorage.getItem('sfxVolume');
         const savedBgmSrc = localStorage.getItem('bgm');
         const savedBgmMuted = localStorage.getItem('bgmMuted') === 'true';
+        const savedBgmIndex = localStorage.getItem('bgmIndex');
 
         const bgmVolume = savedBGM !== null ? Number(savedBGM) : 20;
         const sfxVolume = savedSFX !== null ? Number(savedSFX) : 50;
         const bgmSrc = savedBgmSrc || 'assets/sounds/RETRO.mp3';
+
+        if (savedBgmIndex) {
+            this.currentBgmIndex = Number(savedBgmIndex);
+        }
 
         // SoundMgr에 적용
         SoundMgr.handle.bgmVolume = savedBgmMuted ? 0 : bgmVolume / 100;
@@ -64,6 +60,7 @@ export class Option extends DomX {
         // BGM 재생
         SoundMgr.handle.playBGM(bgmSrc, bgmVolume);
 
+        // BGM 변경 이벤트
         EVT_HUB_SAFE.on(G_EVT.BGM.CHANGE, (src: any) => {
             const currentBgmVolume = Number(
                 localStorage.getItem('bgmVolume') || 20
@@ -72,8 +69,6 @@ export class Option extends DomX {
             localStorage.setItem('bgm', newBgmSrc);
             SoundMgr.handle.playBGM(newBgmSrc, currentBgmVolume);
         });
-        window.addEventListener('resize', resizeOptionOverlay);
-        resizeOptionOverlay(); // 초기 실행
     }
 
     /* ================= OPEN / CLOSE ================= */
@@ -86,14 +81,23 @@ export class Option extends DomX {
         this.syncOverlay();
 
         document.body.appendChild(this.htmlElement);
-        window.addEventListener('resize', this.syncOverlay);
+
+        // ✅ BGM 제목 반짝임 시작
+        this.sparkleInterval = window.setInterval(
+            () => this.sparkleTitle(),
+            2800
+        );
     }
 
-    private close() {
+    public close() {
         if (!this.isOpen) return;
         this.isOpen = false;
 
-        window.removeEventListener('resize', this.syncOverlay);
+        // ✅ BGM 반짝임 정지
+        if (this.sparkleInterval !== null) {
+            window.clearInterval(this.sparkleInterval);
+            this.sparkleInterval = null;
+        }
 
         if (this.htmlElement.parentNode) {
             this.htmlElement.parentNode.removeChild(this.htmlElement);
@@ -105,19 +109,29 @@ export class Option extends DomX {
     public buildUI() {
         this.htmlElement.innerHTML = '';
 
-        /* overlay */
+        const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+        if (!canvas) return;
+
+        const rect = canvas.getBoundingClientRect();
+
+        // ✅ overlay를 Canvas 영역에 정확히 맞춤
         this.overlay = document.createElement('div');
         Object.assign(this.overlay.style, {
-            width: '100%',
-            height: '100%',
+            position: 'fixed',
+            left: `${rect.left}px`,
+            top: `${rect.top}px`,
+            width: `${rect.width}px`,
+            height: `${rect.height}px`,
             display: 'flex',
             justifyContent: 'center',
             alignItems: 'center',
             backgroundColor: 'rgba(0,0,0,0.5)',
+            zIndex: '1001',
         });
 
-        /* panel */
+        // ✅ panel
         this.panel = document.createElement('div');
+        const panelWidth = rect.width * 0.4;
         Object.assign(this.panel.style, {
             position: 'relative',
             background:
@@ -127,34 +141,79 @@ export class Option extends DomX {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
+            width: `${panelWidth}px`,
+            height: `${panelWidth}px`, // 정사각형
         });
 
-        // resize 이벤트: overlay + panel
-        const resizeOverlayAndPanel = () => {
-            const canvas = document.querySelector(
-                'canvas'
-            ) as HTMLCanvasElement;
-            const rect = canvas.getBoundingClientRect();
+        // ✅ resize 이벤트
+        const resizeHandler = () => {
+            const newRect = canvas.getBoundingClientRect();
 
-            // overlay 크기 캔버스에 맞춤
+            // Overlay를 Canvas에 맞춤
             Object.assign(this.overlay.style, {
-                left: `${rect.left}px`,
-                top: `${rect.top}px`,
-                width: `${rect.width}px`,
-                height: `${rect.height}px`,
+                left: `${newRect.left}px`,
+                top: `${newRect.top}px`,
+                width: `${newRect.width}px`,
+                height: `${newRect.height}px`,
             });
 
-            // panel은 overlay 대비 60%로 픽셀 계산
-            const panelWidth = rect.width * 0.4;
+            // Panel 크기 조정
+            const newPanelWidth = newRect.width * 0.4;
             Object.assign(this.panel.style, {
-                width: `${panelWidth}px`,
-                height: `${panelWidth}px`, // 정사각형 유지
+                width: `${newPanelWidth}px`,
+                height: `${newPanelWidth}px`,
             });
+
+            // Slider box gap
+            if (sliderBox) {
+                const panelHeight = this.panel.getBoundingClientRect().height;
+                sliderBox.style.gap = `${Math.max(
+                    12,
+                    Math.min(64, panelHeight * 0.05)
+                )}px`;
+            }
+
+            // Slider height
+            if (this.volumeSlider && this.sfxSlider) {
+                const panelHeight = this.panel.getBoundingClientRect().height;
+                const newHeight = Math.max(
+                    10,
+                    Math.min(64, panelHeight * 0.06)
+                );
+                this.volumeSlider.style.height = `${newHeight}px`;
+                this.sfxSlider.style.height = `${newHeight}px`;
+            }
+
+            // Thumb size
+            if (this.sliderStyle) {
+                const thumbSize = Math.max(
+                    24,
+                    Math.min(64, newPanelWidth * 0.08)
+                );
+                this.sliderStyle.innerHTML = `
+                    input[type="range"] {
+                        -webkit-appearance: none;
+                        appearance: none;
+                        border-radius: 20px;
+                    }
+                    input[type="range"]::-webkit-slider-thumb {
+                        -webkit-appearance: none;
+                        width: ${thumbSize}px;
+                        height: ${thumbSize}px;
+                        background: rgb(92,83,216);
+                        border: ${Math.round(thumbSize * 0.136)}px solid #fff;
+                        border-radius: 50%;
+                        cursor: pointer;
+                    }
+                `;
+            }
         };
 
-        window.addEventListener('resize', resizeOverlayAndPanel);
-        resizeOverlayAndPanel(); // 초기 실
-        /* close */
+        window.addEventListener('resize', resizeHandler);
+
+        /* ================= Buttons ================= */
+
+        // Close button
         this.closeBtn = this.createButton(
             { top: '4%', right: '4%', width: '8%' },
             '/assets/images/exit.png',
@@ -164,14 +223,67 @@ export class Option extends DomX {
             }
         );
 
-        /* give up */
-        this.giveupBtn = this.createButton(
-            { top: '40%', left: '45%', bottom: '40%', width: '35%' },
-            '/assets/images/bt_giveup_s.png',
-            () => this.onGiveUp()
+        // Give up button
+        // this.giveupBtn = this.createButton(
+        //     { top: '40%', left: '45%', bottom: '40%', width: '35%' },
+        //     '/assets/images/bt_giveup_s.png',
+        //     () => this.onGiveUp()
+        // );
+
+        /* ================= BGM Button (NEW) ================= */
+        this.btnBgm = this.createButton(
+            { top: '50%', left: '10%', width: '12%' },
+            './assets/images/bt_bgm_s.png',
+            () => {
+                SoundMgr.handle.playSound('btn');
+                this.changeNextBGM();
+                this.sparkleTitle();
+            }
         );
 
-        /* sliders */
+        this.btnBgm.addEventListener('pointerdown', () => {
+            this.btnBgm.style.backgroundImage =
+                'url("./assets/images/bt_bgm_n.png")';
+        });
+        this.btnBgm.addEventListener('pointerup', () => {
+            this.btnBgm.style.backgroundImage =
+                'url("./assets/images/bt_bgm_s.png")';
+        });
+        this.btnBgm.addEventListener('pointerleave', () => {
+            this.btnBgm.style.backgroundImage =
+                'url("./assets/images/bt_bgm_s.png")';
+        });
+
+        /* ================= BGM Title (NEW) ================= */
+        this.titleElement = document.createElement('div');
+        Object.assign(this.titleElement.style, {
+            position: 'absolute',
+            top: '50%',
+            left: '25%',
+            transform: 'translateY(-50%)',
+            fontFamily: '"PressStart2P-Regular", monospace',
+            fontSize: '10px',
+            letterSpacing: '1px',
+            textTransform: 'uppercase',
+            color: '#F8E6B8',
+            background: 'rgba(90, 65, 40, 0.78)',
+            padding: '8px 14px',
+            borderRadius: '8px',
+            textAlign: 'center',
+            whiteSpace: 'nowrap',
+            transition: 'text-shadow 0.8s ease',
+            pointerEvents: 'none',
+            boxShadow: `
+                0 0 0 2px #7a5a28,
+                0 0 0 4px #e6c87a,
+                0 0 0 6px #b08a3a,
+                inset -2px -2px 3px rgba(0,0,0,0.35)
+            `,
+        });
+        this.titleElement.textContent = BGM_LIST[this.currentBgmIndex].title;
+
+        /* ================= Sliders ================= */
+
         const sliderBox = document.createElement('div');
         Object.assign(sliderBox.style, {
             position: 'absolute',
@@ -183,34 +295,13 @@ export class Option extends DomX {
             flexDirection: 'column',
         });
 
-        // panel 크기에 따라 gap 설정
-        const resizeSliderBox = () => {
-            const panelHeight = this.panel.getBoundingClientRect().height;
-            sliderBox.style.gap = `${Math.max(
-                12,
-                Math.min(64, panelHeight * 0.05)
-            )}px`;
-        };
-
-        // 초기 적용
-        resizeSliderBox();
-
-        // resize 이벤트에 연결
-        window.addEventListener('resize', resizeSliderBox);
-
         this.volumeSlider = this.createSlider(
             Number(localStorage.getItem('bgmVolume') ?? 20),
             (v) => {
                 localStorage.setItem('bgmVolume', String(v));
                 const muted = this.isMuted('bgm');
-
-                // 볼륨 적용
                 SoundMgr.handle.bgmVolume = muted ? 0 : v / 100;
-
-                // 스타일 업데이트
                 this.updateSliderStyle(this.volumeSlider, v, muted);
-
-                // 아이콘: 음소거 상태 또는 0일 때 off
                 this.bgmMuteBtn.style.backgroundImage =
                     muted || v === 0
                         ? 'url("./assets/images/sound_off.png")'
@@ -218,20 +309,13 @@ export class Option extends DomX {
             }
         );
 
-        // SFX 슬라이더
         this.sfxSlider = this.createSlider(
             Number(localStorage.getItem('sfxVolume') ?? 50),
             (v) => {
                 localStorage.setItem('sfxVolume', String(v));
                 const muted = this.isMuted('sfx');
-
-                // 볼륨 적용
                 SoundMgr.handle.sfxVolume = muted ? 0 : v / 100;
-
-                // 스타일 업데이트
                 this.updateSliderStyle(this.sfxSlider, v, muted);
-
-                // 아이콘: 음소거 상태 또는 0일 때 off
                 this.sfxMuteBtn.style.backgroundImage =
                     muted || v === 0
                         ? 'url("./assets/images/sound_off.png")'
@@ -252,13 +336,12 @@ export class Option extends DomX {
             () => this.toggleMute('sfx')
         );
 
-        // → 바로 로컬스토리지 값 기반으로 UI 업데이트
+        // 초기 UI 상태 적용
         const savedBgmMuted = localStorage.getItem('bgmMuted') === 'true';
         const savedSfxMuted = localStorage.getItem('sfxMuted') === 'true';
         this.updateMuteIcon(this.bgmMuteBtn, savedBgmMuted);
         this.updateMuteIcon(this.sfxMuteBtn, savedSfxMuted);
 
-        // 슬라이더 초기화도 동일하게 적용
         const savedBgmVolume = Number(localStorage.getItem('bgmVolume') ?? 20);
         const savedSfxVolume = Number(localStorage.getItem('sfxVolume') ?? 50);
         this.updateSliderStyle(
@@ -269,49 +352,62 @@ export class Option extends DomX {
         this.updateSliderStyle(this.sfxSlider, savedSfxVolume, savedSfxMuted);
         this.setSliderMuted(this.volumeSlider, this.isMuted('bgm'));
         this.setSliderMuted(this.sfxSlider, this.isMuted('sfx'));
+
+        // ✅ Panel에 모든 요소 추가
         this.panel.append(
             this.closeBtn,
+            this.btnBgm, // ✅ BGM 버튼 추가
+            this.titleElement, // ✅ BGM 제목 추가
             sliderBox,
-            this.giveupBtn,
             this.bgmMuteBtn,
             this.sfxMuteBtn
         );
         this.overlay.appendChild(this.panel);
         this.htmlElement.appendChild(this.overlay);
+
         requestAnimationFrame(() => {
-            const panelWidth = this.panel.getBoundingClientRect().width;
-            const thumbSize = Math.max(24, Math.min(64, panelWidth * 0.08));
-            this.sliderStyle.innerHTML = `
-                input[type="range"] {
-                    -webkit-appearance: none;
-                    appearance: none;
-                    border-radius: 20px;
-                }
-                input[type="range"]::-webkit-slider-thumb {
-                    -webkit-appearance: none;
-                    width: ${thumbSize}px;
-                    height: ${thumbSize}px;
-                    background: rgb(92,83,216);
-                    border: ${Math.round(thumbSize * 0.136)}px solid #fff;
-                    border-radius: 50%;
-                    cursor: pointer;
-                }
-            `;
-
-            // sliderBox gap resize
-            const panelHeight = this.panel.getBoundingClientRect().height;
-            sliderBox.style.gap = `${Math.max(
-                12,
-                Math.min(64, panelHeight * 0.05)
-            )}px`;
-
-            // slider input height
-            const newHeight = Math.max(10, Math.min(64, panelHeight * 0.06));
-            this.volumeSlider.style.height = `${newHeight}px`;
-            this.sfxSlider.style.height = `${newHeight}px`;
+            resizeHandler(); // 초기 resize 실행
         });
 
         this.injectSliderStyle();
+    }
+
+    /* ================= BGM 관련 (NEW) ================= */
+
+    private changeNextBGM() {
+        this.currentBgmIndex = (this.currentBgmIndex + 1) % BGM_LIST.length;
+        const nextBGM = BGM_LIST[this.currentBgmIndex];
+        EVT_HUB_SAFE.emit(G_EVT.BGM.CHANGE, nextBGM.src);
+        localStorage.setItem('bgmIndex', String(this.currentBgmIndex));
+        this.titleElement.textContent = nextBGM.title;
+    }
+
+    private sparkleTitle() {
+        if (!this.titleElement) return;
+        this.titleElement.style.textShadow = `
+            0 0 4px rgba(255, 220, 160, 0.45),
+            0 0 8px rgba(255, 200, 120, 0.25)
+        `;
+        setTimeout(() => {
+            if (this.titleElement) {
+                this.titleElement.style.textShadow = '0 0 1px rgba(0,0,0,0.7)';
+            }
+        }, 900);
+    }
+
+    /* ================= Sync Overlay ================= */
+
+    private syncOverlay() {
+        const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+        if (!canvas || !this.overlay) return;
+
+        const rect = canvas.getBoundingClientRect();
+        Object.assign(this.overlay.style, {
+            left: `${rect.left}px`,
+            top: `${rect.top}px`,
+            width: `${rect.width}px`,
+            height: `${rect.height}px`,
+        });
     }
 
     /* ================= HELPERS ================= */
@@ -334,11 +430,7 @@ export class Option extends DomX {
         return btn;
     }
 
-    private createSlider(
-        value: number,
-        onChange: (v: number) => void,
-        muteBtn?: HTMLButtonElement
-    ) {
+    private createSlider(value: number, onChange: (v: number) => void) {
         const input = document.createElement('input');
         input.type = 'range';
         input.min = '0';
@@ -346,31 +438,11 @@ export class Option extends DomX {
         input.value = String(value);
         Object.assign(input.style, {
             width: '100%',
-            height: '36px', // 초기값, 나중에 resize에서 바꿀 예정
+            height: '36px',
         });
-
-        const resizeHeight = () => {
-            if (!this.panel) return;
-            const panelHeight = this.panel.getBoundingClientRect().height;
-            const newHeight = Math.max(10, Math.min(64, panelHeight * 0.06));
-            input.style.height = `${newHeight}px`;
-        };
-
-        window.addEventListener('resize', resizeHeight);
-        resizeHeight(); // 초기 적용
 
         input.oninput = (e) => {
             const val = Number((e.target as HTMLInputElement).value);
-            this.updateSliderStyle(input, val); // 배경 스타일만 업데이트
-
-            // 음소거 아이콘 처리
-            if (muteBtn) {
-                muteBtn.style.backgroundImage =
-                    val === 0
-                        ? 'url("./assets/images/sound_off.png")'
-                        : 'url("./assets/images/sound_on.png")';
-            }
-
             onChange(val);
         };
 
@@ -396,13 +468,11 @@ export class Option extends DomX {
 
     private setSliderMuted(slider: HTMLInputElement, muted: boolean) {
         if (muted) {
-            // 완전히 회색으로 덮는 대신, 투명도만 줄여서 흐리게
-            slider.style.opacity = '0.5'; // 0.4~0.6 정도 적당
+            slider.style.opacity = '0.5';
             slider.style.pointerEvents = 'none';
         } else {
             slider.style.opacity = '1';
             slider.style.pointerEvents = 'auto';
-            // 배경 다시 업데이트 (슬라이더 값 기준)
             const val = Number(slider.value);
             this.updateSliderStyle(slider, val);
         }
@@ -413,12 +483,12 @@ export class Option extends DomX {
             ? 'url("./assets/images/sound_off.png")'
             : 'url("./assets/images/sound_on.png")';
     }
+
     private updateSliderStyle(
         input: HTMLInputElement,
         val: number,
         muted = false
     ) {
-        const isZero = val === 0;
         if (muted) {
             input.style.opacity = '0.4';
             return;
@@ -427,50 +497,18 @@ export class Option extends DomX {
         const min = Number(input.min);
         const max = Number(input.max);
         let percent = ((val - min) / (max - min)) * 100;
-        percent = ((val - min) / (max - min)) * 100;
-        percent = percent * 0.92 + 4; // 0~100% 범위를 thumb 중심에 맞춰 약간 보정
+        percent = percent * 0.92 + 4;
         input.style.background = `linear-gradient(
             90deg,
             rgb(92,83,216) ${percent}%,
             #e2e2e2 ${percent}%
         )`;
         input.style.opacity = '1';
-        const btn =
-            input.dataset.muteBtn &&
-            (document.querySelector(
-                input.dataset.muteBtn
-            ) as HTMLButtonElement);
-        if (btn) {
-            btn.style.backgroundImage = isZero
-                ? 'url("./assets/images/sound_off.png")'
-                : 'url("./assets/images/sound_on.png")';
-        }
     }
 
     private injectSliderStyle() {
         this.sliderStyle = document.createElement('style');
         this.sliderStyle.innerHTML = `
-        input[type="range"] {
-            -webkit-appearance: none;
-            appearance: none;
-            border-radius: 20px;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            background: rgb(92,83,216);
-            border: 6px solid #fff;
-            border-radius: 50%;
-            cursor: pointer;
-        }
-    `;
-        document.head.appendChild(this.sliderStyle);
-
-        // panel 크기에 맞춰 thumb 사이즈 조정
-        const resizeThumb = () => {
-            if (!this.panel) return; // panel 없으면 바로 return
-            const panelWidth = this.panel.getBoundingClientRect().width;
-            const thumbSize = Math.max(24, Math.min(64, panelWidth * 0.08)); // panel 대비 8% 크기
-            this.sliderStyle.innerHTML = `
             input[type="range"] {
                 -webkit-appearance: none;
                 appearance: none;
@@ -478,32 +516,25 @@ export class Option extends DomX {
             }
             input[type="range"]::-webkit-slider-thumb {
                 -webkit-appearance: none;
-                width: ${thumbSize}px;
-                height: ${thumbSize}px;
                 background: rgb(92,83,216);
-                border: ${Math.round(thumbSize * 0.136)}px solid #fff;
+                border: 6px solid #fff;
                 border-radius: 50%;
                 cursor: pointer;
             }
         `;
-        };
-
-        // 초기 적용
-        resizeThumb();
-
-        // resize 이벤트에 연결
-        window.addEventListener('resize', resizeThumb);
+        document.head.appendChild(this.sliderStyle);
     }
 
-    private onGiveUp() {
-        if (confirm('정말 포기하시겠습니까?')) {
-            console.log('포기');
-            EVT_HUB_SAFE.emit(G_EVT.PLAY.GAME_OVER, {
-                finalScore: this.score.getFinalScore(),
-            });
-            this.close();
-        }
-    }
+    // private onGiveUp() {
+    //     if (confirm('정말 포기하시겠습니까?')) {
+    //         console.log('포기');
+    //         EVT_HUB_SAFE.emit(G_EVT.PLAY.GAME_OVER, {
+    //             finalScore: this.score.getFinalScore(),
+    //             mode: 'GIVE_UP',
+    //         });
+    //         this.close();
+    //     }
+    // }
 
     private isMuted(type: 'bgm' | 'sfx') {
         return localStorage.getItem(`${type}Muted`) === 'true';

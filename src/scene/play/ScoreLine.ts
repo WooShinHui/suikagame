@@ -21,9 +21,7 @@ export class ScoreLine extends ContainerX {
             }
         }
 
-        // ✅ Safe Area 기준 좌표 (좌측 하단)
-        // 원본: x=60, y=1180
-        this.x = UIScale.safeToCanvasX(60);
+        this.x = UIScale.safeToCanvasX(64);
         this.y = UIScale.safeToCanvasY(SAFE_HEIGHT - 60); // 하단에서 100px 위
     }
 
