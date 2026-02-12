@@ -43,7 +43,6 @@ class PLAY extends SceneX {
         super();
 
         EVT_HUB_SAFE.on(G_EVT.LOGIN.LOGIN_SUCCESS, this.onLoginSuccess);
-        EVT_HUB_SAFE.on(G_EVT.MENU.INGAME_OPEN_OPTION, this.onOpenOption);
 
         this.create();
     }
@@ -67,7 +66,7 @@ class PLAY extends SceneX {
     public onMounted(): void {
         console.log('🎮 PLAY.onMounted() 시작');
         EVT_HUB_SAFE.on(G_EVT.RE.START, this.onRestart);
-
+        EVT_HUB_SAFE.on(G_EVT.MENU.INGAME_OPEN_OPTION, this.onOpenOption);
         this.buildView();
         this.buildResult();
         this.buildController();
@@ -184,7 +183,7 @@ class PLAY extends SceneX {
             this.currentUsername = 'guest_' + Date.now();
             console.warn(
                 '[WARN] guest_user_name 없음 → guest 자동 지정:',
-                this.currentUsername
+                this.currentUsername,
             );
         } else {
             this.currentUsername = savedName;
@@ -194,7 +193,7 @@ class PLAY extends SceneX {
             this.currentId = 'guest_id_' + Date.now();
             console.warn(
                 '[WARN] userId 없음 → guest_id 자동 지정:',
-                this.currentId
+                this.currentId,
             );
         }
 

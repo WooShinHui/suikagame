@@ -2,20 +2,10 @@
     "animate": [
         {
             "id": "905B69454E1DF744BCD2186E19D518E4",
-            "key": "circle",
-            "src": "circle.js?"
-        },
-        {
-            "id": "905B69454E1DF744BCD2186E19D518E4",
             "key": "circle_2",
             "src": "circle_2.js?"
         }
     ],
-    "images": [
-        {
-            "key": "bg",
-            "src": "assets/images/bg.png"
-        }
-    ],
+    "images": [],
     "sounds": []
 }

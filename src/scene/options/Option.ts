@@ -63,9 +63,9 @@ export class Option extends PureDomX {
         // BGM 변경 이벤트
         EVT_HUB_SAFE.on(G_EVT.BGM.CHANGE, (src: any) => {
             const currentBgmVolume = Number(
-                localStorage.getItem('bgmVolume') || 20
+                localStorage.getItem('bgmVolume') || 20,
             );
-            const newBgmSrc = `./${src.data}`;
+            const newBgmSrc = `${src.data}`;
             localStorage.setItem('bgm', newBgmSrc);
             SoundMgr.handle.playBGM(newBgmSrc, currentBgmVolume);
         });
@@ -85,7 +85,7 @@ export class Option extends PureDomX {
         // ✅ BGM 제목 반짝임 시작
         this.sparkleInterval = window.setInterval(
             () => this.sparkleTitle(),
-            2800
+            2800,
         );
     }
 
@@ -169,7 +169,7 @@ export class Option extends PureDomX {
                 const panelHeight = this.panel.getBoundingClientRect().height;
                 sliderBox.style.gap = `${Math.max(
                     12,
-                    Math.min(64, panelHeight * 0.05)
+                    Math.min(64, panelHeight * 0.05),
                 )}px`;
             }
 
@@ -178,7 +178,7 @@ export class Option extends PureDomX {
                 const panelHeight = this.panel.getBoundingClientRect().height;
                 const newHeight = Math.max(
                     10,
-                    Math.min(64, panelHeight * 0.06)
+                    Math.min(64, panelHeight * 0.06),
                 );
                 this.volumeSlider.style.height = `${newHeight}px`;
                 this.sfxSlider.style.height = `${newHeight}px`;
@@ -188,7 +188,7 @@ export class Option extends PureDomX {
             if (this.sliderStyle) {
                 const thumbSize = Math.max(
                     24,
-                    Math.min(64, newPanelWidth * 0.08)
+                    Math.min(64, newPanelWidth * 0.08),
                 );
                 this.sliderStyle.innerHTML = `
                     input[type="range"] {
@@ -220,7 +220,7 @@ export class Option extends PureDomX {
             () => {
                 SoundMgr.handle.playSound('btn');
                 this.close();
-            }
+            },
         );
 
         // Give up button
@@ -238,7 +238,7 @@ export class Option extends PureDomX {
                 SoundMgr.handle.playSound('btn');
                 this.changeNextBGM();
                 this.sparkleTitle();
-            }
+            },
         );
 
         this.btnBgm.addEventListener('pointerdown', () => {
@@ -306,7 +306,7 @@ export class Option extends PureDomX {
                     muted || v === 0
                         ? 'url("./assets/images/sound_off.png")'
                         : 'url("./assets/images/sound_on.png")';
-            }
+            },
         );
 
         this.sfxSlider = this.createSlider(
@@ -320,7 +320,7 @@ export class Option extends PureDomX {
                     muted || v === 0
                         ? 'url("./assets/images/sound_off.png")'
                         : 'url("./assets/images/sound_on.png")';
-            }
+            },
         );
 
         sliderBox.append(this.sfxSlider, this.volumeSlider);
@@ -328,12 +328,12 @@ export class Option extends PureDomX {
         this.bgmMuteBtn = this.createButton(
             { left: '13%', top: '76%', width: '10%' },
             '/assets/images/sound_on.png',
-            () => this.toggleMute('bgm')
+            () => this.toggleMute('bgm'),
         );
         this.sfxMuteBtn = this.createButton(
             { left: '13%', top: '63%', width: '10%' },
             '/assets/images/sound_on.png',
-            () => this.toggleMute('sfx')
+            () => this.toggleMute('sfx'),
         );
 
         // 초기 UI 상태 적용
@@ -347,7 +347,7 @@ export class Option extends PureDomX {
         this.updateSliderStyle(
             this.volumeSlider,
             savedBgmVolume,
-            savedBgmMuted
+            savedBgmMuted,
         );
         this.updateSliderStyle(this.sfxSlider, savedSfxVolume, savedSfxMuted);
         this.setSliderMuted(this.volumeSlider, this.isMuted('bgm'));
@@ -360,7 +360,7 @@ export class Option extends PureDomX {
             this.titleElement, // ✅ BGM 제목 추가
             sliderBox,
             this.bgmMuteBtn,
-            this.sfxMuteBtn
+            this.sfxMuteBtn,
         );
         this.overlay.appendChild(this.panel);
         this.htmlElement.appendChild(this.overlay);
@@ -415,7 +415,7 @@ export class Option extends PureDomX {
     private createButton(
         pos: Partial<CSSStyleDeclaration>,
         img: string,
-        onClick: () => void
+        onClick: () => void,
     ) {
         const btn = document.createElement('button');
         Object.assign(btn.style, {
@@ -487,7 +487,7 @@ export class Option extends PureDomX {
     private updateSliderStyle(
         input: HTMLInputElement,
         val: number,
-        muted = false
+        muted = false,
     ) {
         if (muted) {
             input.style.opacity = '0.4';

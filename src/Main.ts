@@ -1,4 +1,8 @@
 // src/Main.ts
+import '../js/createjs.min.js';
+import '../js/ScaleBitmap.js';
+import '../js/RotationPlugin.js';
+
 import App from './core/App';
 import { AppConfig } from './core/CoreApp';
 import PLAY from './scene/play/PLAY';
@@ -83,29 +87,11 @@ function createLocalUser() {
     };
 }
 
+// Main.ts 수정 제안
 window.onload = async () => {
     canvas = document.getElementById('create_cvs') as HTMLCanvasElement;
-
     applyResize();
-    window.addEventListener('resize', applyResize);
-    UIScale.update();
-
-    // ✅ 1. CrazyGames 초기화 (또는 로컬 폴백)
-    console.log('🔹 사용자 초기화 시작...');
-    const userInfo = await initCrazyGames();
-    console.log('🔹 최종 사용자 정보:', userInfo);
-
-    // ✅ 2. Firebase 세션 생성
-    console.log('🔹 Firebase 세션 생성 시작...');
-    await API_CONNECTOR.setCrazyGamesUser(userInfo);
-    console.log('✅ Firebase 세션 생성 완료');
-
-    // 3. 게임 로딩 시작 알림
-    if (window.CrazyGames?.SDK?.game) {
-        // window.CrazyGames.SDK.game.sdkGameLoadingStart();
-    }
-
-    // 4. 게임 앱 생성
+    // 1. 게임 앱을 즉시 생성 (로딩 화면이 바로 나타남)
     const config: AppConfig = {
         canvas,
         context: canvas.getContext('2d'),
@@ -115,13 +101,26 @@ window.onload = async () => {
         background: '#fff9d6',
         scene: [PLAY],
     };
+    const gameApp = new App(config);
 
-    new App(config);
+    // 2. 유저 인증 및 세션 생성은 비동기로 던짐 (await 제거)
+    (async () => {
+        try {
+            console.log('🔹 사용자 및 세션 초기화 시작 (백그라운드)');
+            const userInfo = await initCrazyGames();
 
-    // 5. 게임 로딩 완료 알림
+            // Firebase 세션 생성을 기다리지 않고 실행 (내부에서 필요한 시점에 await 하도록 설계됨)
+            API_CONNECTOR.setCrazyGamesUser(userInfo);
+
+            console.log('✅ 초기화 요청 완료');
+        } catch (e) {
+            console.error('초기화 중 오류:', e);
+        }
+    })();
+
+    // 3. 로딩 중지 알림 (엔진 내부 로딩이 끝나는 시점에 맞춰 호출하는 것이 좋으나, 임시로 유지)
     setTimeout(() => {
         if (window.CrazyGames?.SDK?.game) {
-            // window.CrazyGames.SDK.game.sdkGameLoadingStop();
             window.CrazyGames.SDK.game.gameplayStart();
         }
     }, 2000);

@@ -178,7 +178,7 @@ class View extends ContainerX {
         Matter.Events.on(
             this.engine,
             'collisionStart',
-            this.handleCollisionStart
+            this.handleCollisionStart,
         );
     }
 
@@ -234,7 +234,7 @@ class View extends ContainerX {
     }
 
     private buildBackgroundAndLayer(): void {
-        const bg = this.resource.getImage('bg');
+        const bg = this.resource.getLibrary('circle_2', 'mBg');
         this.addChild(bg);
 
         this.beadCt = new ContainerX();
@@ -293,7 +293,7 @@ class View extends ContainerX {
                 isStatic: true,
                 label: 'ground',
                 render: { fillStyle: '#8B4513' },
-            }
+            },
         );
 
         const leftWall = Matter.Bodies.rectangle(
@@ -305,7 +305,7 @@ class View extends ContainerX {
                 isStatic: true,
                 label: 'leftWall',
                 render: { fillStyle: '#8B4513' },
-            }
+            },
         );
 
         const rightWall = Matter.Bodies.rectangle(
@@ -317,7 +317,7 @@ class View extends ContainerX {
                 isStatic: true,
                 label: 'rightWall',
                 render: { fillStyle: '#8B4513' },
-            }
+            },
         );
 
         Matter.World.add(this.engine.world, [ground, leftWall, rightWall]);
@@ -415,7 +415,7 @@ class View extends ContainerX {
 
             const mc = this.resource.getLibrary(
                 'circle_2',
-                `bead_${circle.typeX}`
+                `bead_${circle.typeX}`,
             );
 
             // 위치는 물리 엔진의 위치를 그대로 추종 (Update 루프에서 처리될 것임)
@@ -441,7 +441,7 @@ class View extends ContainerX {
     private setFace(
         $mc: createjs.MovieClip,
         $frame: number,
-        $time: number
+        $time: number,
     ): void {
         $mc.gotoAndStop($frame);
         if ($time === -1) return;
@@ -483,7 +483,7 @@ class View extends ContainerX {
         // 회전 트윈
         createjs.Tween.get(mc, { loop: -1, bounce: true }).to(
             { rotation: 720, rotationDir: 1 },
-            1000
+            1000,
         );
 
         this.beadCt.addChild(mc);
@@ -564,12 +564,12 @@ class View extends ContainerX {
 
                         if (this.arr_compos[bodyA.label]?.mc) {
                             this.beadCt.removeChild(
-                                this.arr_compos[bodyA.label].mc
+                                this.arr_compos[bodyA.label].mc,
                             );
                         }
                         if (this.arr_compos[bodyB.label]?.mc) {
                             this.beadCt.removeChild(
-                                this.arr_compos[bodyB.label].mc
+                                this.arr_compos[bodyB.label].mc,
                             );
                         }
 
@@ -672,11 +672,11 @@ class View extends ContainerX {
         $type: number,
         $px: number,
         $py: number,
-        $index: number
+        $index: number,
     ): void {
         const effect = this.resource.getLibrary(
             'circle_2',
-            `effect_com${$index}`
+            `effect_com${$index}`,
         );
 
         effect.x = $px;
@@ -909,13 +909,13 @@ class View extends ContainerX {
 
         // 2️⃣ 2개 이상 있는 타입만 추리기
         const availableTypes = Array.from(typeMap.entries()).filter(
-            ([, bodies]) => bodies.length >= 2
+            ([, bodies]) => bodies.length >= 2,
         );
 
         if (availableTypes.length === 0) {
             console.warn('[DEBUG] No mergeable pairs found');
             alert(
-                '필드에 두 개 이상의 구슬이 있어야 합니다.\n최대한 많이 쌓고, 행운을 노려보세요!'
+                'You need at least two beads  on the field. \n Stack as many as you can and test your luck!',
             );
             EVT_HUB_SAFE.emit(G_EVT.PLAY.MERGE_FAIL);
             return;
@@ -977,7 +977,7 @@ class View extends ContainerX {
     private processMergePair(
         bodyA: Matter.Body,
         bodyB: Matter.Body,
-        removedBodies: Set<string>
+        removedBodies: Set<string>,
     ): void {
         // 1. 💡 [중복 처리 방지 로직] 이미 제거된 구슬인지 확인
         if (removedBodies.has(bodyA.label) || removedBodies.has(bodyB.label)) {
@@ -1108,7 +1108,7 @@ class View extends ContainerX {
             Matter.Events.off(
                 this.engine,
                 'collisionStart',
-                this.handleCollisionStart
+                this.handleCollisionStart,
             );
             Matter.World.clear(this.engine.world, false);
             Matter.Engine.clear(this.engine);
