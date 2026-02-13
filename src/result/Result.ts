@@ -19,6 +19,9 @@ export class Result {
     private previousHighScore: number = 0;
     private isShowing: boolean = false;
 
+    // ✅ 전체 순위 캐시
+    private allRankingsCache: RankingEntry[] | null = null;
+
     private _onSessionStarted: any;
     private _onGameOver: any;
     private _onShowResult: any;
@@ -104,7 +107,6 @@ export class Result {
         }
     }
 
-    // ✅ 폰트 크기 계산
     private px(baseSize: number): number {
         const sw = window.innerWidth;
         const baseWidth = 720;
@@ -131,6 +133,9 @@ export class Result {
     ): Promise<void> {
         if (this.isShowing) return;
         this.isShowing = true;
+
+        // ✅ 캐시 초기화
+        this.allRankingsCache = null;
 
         const isRankingOnly = type === 'START';
 
@@ -179,7 +184,6 @@ export class Result {
     ): void {
         const isGameOver = type === 'GAME_OVER';
         const isRankingOnly = type === 'START';
-        const highScore = previousScore;
         let inner = '';
 
         const oldBtn = this.resultCt.querySelector(
@@ -189,7 +193,6 @@ export class Result {
 
         const myDisplayName = this.currentUsername || 'Guest';
 
-        // ✅ 제목
         inner += `
             <div style="font-size: ${this.px(
                 20
@@ -200,10 +203,14 @@ export class Result {
             </div>
         `;
 
-        // ✅ GAME OVER UI (크기 대폭 축소)
         if (isGameOver) {
             const currentScore = Number(this.finalScore);
+            const highScore = Number(previousScore);
+
+            // ✅ 신기록 판정: 현재 점수가 이전 최고 점수보다 높을 때
             const isNewHighScore = currentScore > highScore;
+
+            // ✅ 표시할 최고 점수: 둘 중 큰 값
             const displayHighScore = Math.max(currentScore, highScore);
 
             inner += `
@@ -259,7 +266,6 @@ export class Result {
             `;
         }
 
-        // ✅ 내 랭킹 표시 (TOP 20 밖일 경우)
         if (myRanking && myRanking.rank > 20) {
             inner += `
             <div style="
@@ -279,59 +285,49 @@ export class Result {
             `;
         }
 
-        // ✅ RANKING TABLE
-        inner += `
-        <h3 style="
-            margin-top:${this.px(10)}px; 
-            font-size:${this.px(16)}px; 
-            color:#00ffcc;
-            text-align:center;
-            text-shadow:0 0 6px rgba(0,255,180,0.4);
-            font-weight:600;
-            letter-spacing:0.5px;
-        ">
-            🏆 Top 20
-        </h3>
-        
-        <table style="
-            width:100%;
-            max-width:${this.px(550)}px;
-            margin:${this.px(8)}px auto;
-            border-collapse:collapse;
-            text-align:left;
-            font-size:${this.px(13)}px;
-            border-radius:${this.px(6)}px;
-            overflow:hidden;
-            background:rgba(255,255,255,0.03);
-            backdrop-filter:blur(4px);
-            border:1px solid rgba(255,255,255,0.08);
-            box-shadow:0 0 12px rgba(0,255,160,0.2);
-        ">
-        <thead>
-        <tr style="background:rgba(0,120,90,0.6); color:#eafff8; letter-spacing:0.5px; font-weight:600;">
-            <th style="padding:${this.px(5)}px; width:${this.px(
-            40
-        )}px; text-align:center; font-size:${this.px(11)}px;">RANK</th>
-            <th style="padding:${this.px(5)}px; font-size:${this.px(
-            11
-        )}px;">PLAYER</th>
-            <th style="padding:${this.px(5)}px; width:${this.px(
-            75
-        )}px; text-align:right; font-size:${this.px(11)}px;">SCORE</th>
-        </tr>
-        </thead>
-        <tbody>
-        `;
+        const showNearbyTab = myRanking && myRanking.rank > 20;
 
-        for (let i = 0; i < topRankings.length; i++) {
-            const entry = topRankings[i];
-            const isMe = String(entry.userId) === String(this.currentUserId);
-            inner += this.createRankingRow(entry, isMe);
+        if (showNearbyTab) {
+            inner += `
+            <div style="
+                display: flex;
+                gap: ${this.px(8)}px;
+                justify-content: center;
+                margin: ${this.px(10)}px auto;
+                max-width: ${this.px(320)}px;
+            ">
+                <button id="tab-top20" style="
+                    flex: 1;
+                    padding: ${this.px(6)}px;
+                    background: rgba(0,255,180,0.2);
+                    border: 1px solid rgba(0,255,180,0.5);
+                    border-radius: ${this.px(4)}px;
+                    color: #00ffcc;
+                    font-size: ${this.px(12)}px;
+                    font-weight: 600;
+                    cursor: pointer;
+                ">
+                    🏆 TOP 20
+                </button>
+                <button id="tab-nearby" style="
+                    flex: 1;
+                    padding: ${this.px(6)}px;
+                    background: rgba(255,255,255,0.1);
+                    border: 1px solid rgba(255,255,255,0.2);
+                    border-radius: ${this.px(4)}px;
+                    color: #ccc;
+                    font-size: ${this.px(12)}px;
+                    font-weight: 600;
+                    cursor: pointer;
+                ">
+                    👥 내 주변
+                </button>
+            </div>
+            `;
         }
 
-        inner += `</tbody></table>`;
+        inner += `<div id="ranking-content"></div>`;
 
-        // ✅ 컨테이너
         this.resultCt.innerHTML = `
         <style>
             #inner-box::-webkit-scrollbar { width: ${this.px(4)}px; }
@@ -391,7 +387,106 @@ export class Result {
             this.resultCt.style.display = 'none';
         };
 
-        // ✅ Restart 버튼
+        const renderRankingTable = (
+            rankings: RankingEntry[],
+            title: string
+        ) => {
+            let tableHtml = `
+            <h3 style="
+                margin-top:${this.px(10)}px; 
+                font-size:${this.px(16)}px; 
+                color:#00ffcc;
+                text-align:center;
+                text-shadow:0 0 6px rgba(0,255,180,0.4);
+                font-weight:600;
+                letter-spacing:0.5px;
+            ">
+                ${title}
+            </h3>
+            
+            <table style="
+                width:100%;
+                max-width:${this.px(550)}px;
+                margin:${this.px(8)}px auto;
+                border-collapse:collapse;
+                text-align:left;
+                font-size:${this.px(13)}px;
+                border-radius:${this.px(6)}px;
+                overflow:hidden;
+                background:rgba(255,255,255,0.03);
+                backdrop-filter:blur(4px);
+                border:1px solid rgba(255,255,255,0.08);
+                box-shadow:0 0 12px rgba(0,255,160,0.2);
+            ">
+            <thead>
+            <tr style="background:rgba(0,120,90,0.6); color:#eafff8; letter-spacing:0.5px; font-weight:600;">
+                <th style="padding:${this.px(5)}px; width:${this.px(
+                40
+            )}px; text-align:center; font-size:${this.px(11)}px;">RANK</th>
+                <th style="padding:${this.px(5)}px; font-size:${this.px(
+                11
+            )}px;">PLAYER</th>
+                <th style="padding:${this.px(5)}px; width:${this.px(
+                75
+            )}px; text-align:right; font-size:${this.px(11)}px;">SCORE</th>
+            </tr>
+            </thead>
+            <tbody>
+            `;
+
+            for (let i = 0; i < rankings.length; i++) {
+                const entry = rankings[i];
+                const isMe =
+                    String(entry.userId) === String(this.currentUserId);
+                tableHtml += this.createRankingRow(entry, isMe);
+            }
+
+            tableHtml += `</tbody></table>`;
+            return tableHtml;
+        };
+
+        const rankingContent = document.getElementById('ranking-content')!;
+        rankingContent.innerHTML = renderRankingTable(topRankings, '🏆 Top 20');
+
+        if (showNearbyTab) {
+            const tabTop20 = document.getElementById('tab-top20')!;
+            const tabNearby = document.getElementById('tab-nearby')!;
+
+            const setActiveTab = (
+                activeBtn: HTMLElement,
+                inactiveBtn: HTMLElement
+            ) => {
+                activeBtn.style.background = 'rgba(0,255,180,0.2)';
+                activeBtn.style.borderColor = 'rgba(0,255,180,0.5)';
+                activeBtn.style.color = '#00ffcc';
+
+                inactiveBtn.style.background = 'rgba(255,255,255,0.1)';
+                inactiveBtn.style.borderColor = 'rgba(255,255,255,0.2)';
+                inactiveBtn.style.color = '#ccc';
+            };
+
+            tabTop20.onclick = () => {
+                setActiveTab(tabTop20, tabNearby);
+                rankingContent.innerHTML = renderRankingTable(
+                    topRankings,
+                    '🏆 Top 20'
+                );
+            };
+
+            tabNearby.onclick = async () => {
+                setActiveTab(tabNearby, tabTop20);
+
+                const nearby = await this.getNearbyRankings(
+                    myRanking!.rank,
+                    topRankings
+                );
+                rankingContent.innerHTML = renderRankingTable(
+                    nearby,
+                    '👥 내 주변'
+                );
+            };
+        }
+
         const restartBtn = document.createElement('button');
         Object.assign(restartBtn.style, {
             position: 'absolute',
@@ -436,6 +531,43 @@ export class Result {
         }
 
         this.resultCt.style.display = 'flex';
+    }
+
+    // ✅ 내 주변 ±5위 추출 (캐시 활용)
+    private async getNearbyRankings(
+        myRank: number,
+        allRankings: RankingEntry[]
+    ): Promise<RankingEntry[]> {
+        try {
+            // ✅ 캐시 체크
+            if (!this.allRankingsCache) {
+                console.log('📊 전체 순위 조회 (캐시 없음)');
+                this.allRankingsCache = await API_CONNECTOR.getAllRankings();
+            } else {
+                console.log('⚡ 캐시 사용 (추가 읽기 없음)');
+            }
+
+            if (!this.allRankingsCache || this.allRankingsCache.length === 0) {
+                console.warn('⚠️ 전체 순위 데이터 없음');
+                return [];
+            }
+
+            const start = Math.max(1, myRank - 5);
+            const end = myRank + 5;
+
+            const nearby = this.allRankingsCache.filter(
+                (entry: RankingEntry) =>
+                    entry.rank >= start && entry.rank <= end
+            );
+
+            console.log(
+                `👥 내 주변 추출: ${nearby.length}명 (${start}위~${end}위)`
+            );
+            return nearby;
+        } catch (error) {
+            console.error('❌ 내 주변 순위 조회 실패:', error);
+            return [];
+        }
     }
 
     private createRankingRow(entry: RankingEntry, isMe: boolean): string {

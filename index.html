@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
@@ -66,6 +66,25 @@
             }
         </style>
         <title></title>
+        <link
+            rel="preload"
+            href="./static/fonts/SchoolSafeDungGeunMiSo.woff2"
+            as="font"
+            type="font/woff2"
+            crossorigin
+        />
+
+        <!-- ✅ 폰트 정의 -->
+        <style>
+            @font-face {
+                font-family: 'SchoolSafeDungGeunMiSo';
+                src: url('./static/fonts/SchoolSafeDungGeunMiSo.woff2')
+                    format('woff2');
+                font-weight: normal;
+                font-style: normal;
+                font-display: swap; /* ✅ FOUT 방지: 폰트 로딩 전 fallback 폰트 표시 */
+            }
+        </style>
     </head>
     <body>
         <div id="contents">

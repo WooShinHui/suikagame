@@ -1,3 +1,4 @@
+// src/fetch/ApiConnector.ts
 import { EVT_HUB_SAFE } from '../events/SafeEventHub';
 import { G_EVT } from '../events/EVT_HUB';
 import CryptoJS from 'crypto-js';
@@ -9,13 +10,22 @@ import {
     setDoc,
     getDoc,
     getDocs,
-    deleteDoc, // ✅ 추가
+    deleteDoc,
     query,
     orderBy,
     limit,
     where,
     serverTimestamp,
 } from '../firebase/firebaseConfig';
+
+// ✅ 타입 정의
+interface RankingEntry {
+    rank: number;
+    username: string;
+    total_score: number;
+    userId: string;
+    countryCode?: string;
+}
 
 export class ApiConnector {
     private static instance: ApiConnector | null = null;
@@ -37,13 +47,10 @@ export class ApiConnector {
         return ApiConnector.instance;
     }
 
-    // ✅ 호환성 메서드 (PLAY.ts에서 호출)
     public refreshSession() {
         console.log('[Firebase] refreshSession 호출 (현재는 불필요)');
-        // Firebase는 세션 갱신 불필요
     }
 
-    // ✅ CrazyGames 사용자 정보 설정
     public async setCrazyGamesUser(userInfo: {
         userId: string;
         username: string;
@@ -51,11 +58,7 @@ export class ApiConnector {
         profilePicture: string | null;
     }) {
         console.log('🔹 setCrazyGamesUser 호출:', userInfo);
-        console.log('  - userId:', userInfo.userId);
-        console.log('  - username:', userInfo.username);
-        console.log('  - countryCode:', userInfo.countryCode);
 
-        // ✅ undefined/null 체크
         if (!userInfo.userId || userInfo.userId === 'undefined') {
             console.error('❌ userId가 없습니다!', userInfo);
             throw new Error('Invalid userId: ' + userInfo.userId);
@@ -68,43 +71,35 @@ export class ApiConnector {
         await this.initFirebaseSession(userInfo);
     }
 
-    // ✅ Firebase 세션 생성
     private async initFirebaseSession(userInfo: {
         userId: string;
         username: string;
         countryCode: string;
     }) {
         try {
-            // ✅ userId 검증
             if (!userInfo.userId) {
                 throw new Error('userId is required');
             }
 
-            // 1. 세션 ID 생성 (고유값)
             this.currentSessionId = `${userInfo.userId}_${Date.now()}`;
 
-            // 2. 세션 비밀키 생성 (클라이언트 해시)
             this.sessionSecret = CryptoJS.SHA256(
                 `${this.currentSessionId}_${Date.now()}_${Math.random()}`
             ).toString();
 
-            // 3. Firestore에 세션 저장
             const sessionData = {
                 userId: userInfo.userId,
                 username: userInfo.username || 'Guest',
                 countryCode: userInfo.countryCode || 'XX',
                 sessionSecret: this.sessionSecret,
                 createdAt: serverTimestamp(),
-                itemCount: 1, // 기본 아이템 1개
+                itemCount: 1,
             };
-
-            console.log('🔹 세션 데이터:', sessionData);
 
             await setDoc(doc(sessionsRef, this.currentSessionId), sessionData);
 
             console.log('✅ Firebase 세션 생성 완료:', this.currentSessionId);
 
-            // 4. 이벤트 발행
             EVT_HUB_SAFE.emit(G_EVT.PLAY.SESSION_STARTED, {
                 gameSessionId: this.currentSessionId,
                 userId: userInfo.userId,
@@ -118,7 +113,6 @@ export class ApiConnector {
         }
     }
 
-    // ✅ 점수 저장 (Firestore)
     public async sendFinalScore(
         finalScore: number,
         userId: string,
@@ -126,19 +120,12 @@ export class ApiConnector {
         gameSessionId?: string
     ) {
         console.log('📤 sendFinalScore 호출');
-        console.log('  - finalScore:', finalScore);
-        console.log('  - userId:', userId);
-        console.log('  - username:', username);
-        console.log('  - gameSessionId:', gameSessionId);
-        console.log('  - currentId:', this.currentId);
-        console.log('  - currentSessionId:', this.currentSessionId);
 
         try {
             const effectiveUserId = userId || this.currentId || 'guest';
-            const sId = gameSessionId || this.currentSessionId;
+            console.log('🔑 effectiveUserId:', effectiveUserId); // ✅ 추가
 
-            console.log('  → effectiveUserId:', effectiveUserId);
-            console.log('  → sessionId:', sId);
+            const sId = gameSessionId || this.currentSessionId;
 
             if (!sId) {
                 console.error('❌ 세션 ID 없음!');
@@ -146,7 +133,6 @@ export class ApiConnector {
                 return;
             }
 
-            // 1. 세션 검증
             const sessionDoc = await getDoc(doc(sessionsRef, sId));
             if (!sessionDoc.exists()) {
                 console.error('❌ 유효하지 않은 세션:', sId);
@@ -156,41 +142,67 @@ export class ApiConnector {
 
             console.log('✅ 세션 검증 완료');
 
-            // 2. 점수 저장
-            const scoreId = `${effectiveUserId}_${Date.now()}`;
-            await setDoc(doc(scoresRef, scoreId), {
-                userId: effectiveUserId,
-                username: username || this.currentUsername || 'Guest',
-                countryCode: this.currentCountryCode || 'XX',
-                score: finalScore,
-                sessionId: sId,
-                timestamp: serverTimestamp(),
+            // ✅ 1. 최고 점수 조회 (getTopRankings 재사용)
+            const allRankings = await this.getTopRankings(500);
+
+            // ✅ 디버깅 로그 추가
+            console.log('📊 전체 랭킹 개수:', allRankings.length);
+            console.log('📊 첫 3개 랭킹:', allRankings.slice(0, 3));
+            console.log('🔍 내 userId로 검색:', effectiveUserId);
+
+            const myData = allRankings.find((entry) => {
+                console.log(
+                    `   비교: "${entry.userId}" === "${effectiveUserId}" ?`,
+                    entry.userId === effectiveUserId
+                );
+                return entry.userId === effectiveUserId;
             });
 
-            console.log('✅ Firebase 점수 저장 완료:', finalScore);
+            console.log('🎯 찾은 내 데이터:', myData); // ✅ 추가
 
-            // 3. 이전 최고 점수 조회
-            const previousHighScore = await this.getUserHighScore(
-                effectiveUserId
+            const previousHighScore = myData ? myData.total_score : 0;
+
+            console.log(
+                `📊 이전 최고 점수: ${previousHighScore}, 현재 점수: ${finalScore}`
             );
-            console.log('📊 이전 최고 점수:', previousHighScore);
 
-            // 4. 결과 표시 이벤트 발행
-            console.log('📤 SHOW_RESULT 이벤트 발행');
+            // ✅ 2. 현재 점수가 최고 점수보다 높을 때만 저장
+            let isNewRecord = false;
+            if (finalScore > previousHighScore) {
+                const scoreId = `${effectiveUserId}_${Date.now()}`;
+                await setDoc(doc(scoresRef, scoreId), {
+                    userId: effectiveUserId,
+                    username: username || this.currentUsername || 'Guest',
+                    countryCode: this.currentCountryCode || 'XX',
+                    score: finalScore,
+                    sessionId: sId,
+                    timestamp: serverTimestamp(),
+                });
+
+                console.log(
+                    `🏆 신기록! Firebase 점수 저장: ${finalScore} (이전: ${previousHighScore})`
+                );
+                isNewRecord = true;
+            } else {
+                console.log(
+                    `📉 점수 ${finalScore}은 최고 점수 ${previousHighScore}보다 낮아 저장 안 함`
+                );
+            }
+
+            // ✅ 3. Result 화면에 최고 점수 전달
             EVT_HUB_SAFE.emit(G_EVT.PLAY.SHOW_RESULT, {
                 mode: 'GAME_OVER',
                 userId: effectiveUserId,
                 finalScore: finalScore,
-                previousHighScore: previousHighScore,
+                previousHighScore: Math.max(finalScore, previousHighScore),
+                isNewRecord: isNewRecord,
             });
-            console.log('✅ SHOW_RESULT 이벤트 발행 완료');
         } catch (error) {
             console.error('❌ Firebase 점수 저장 실패:', error);
             alert(`점수 저장 실패: ${error.message}`);
         }
     }
 
-    // ✅ 사용자 최고 점수 조회
     private async getUserHighScore(userId: string): Promise<number> {
         try {
             const q = query(
@@ -211,34 +223,22 @@ export class ApiConnector {
             return 0;
         }
     }
-
-    // ✅ 전체 랭킹 조회
     public async getRankingData(userId: string): Promise<any> {
         try {
-            // 1. TOP 20 조회 (읽기 횟수 대폭 감소)
+            // ✅ 1. TOP 랭킹 조회 (이미 모든 유저의 최고 점수 계산됨)
             const topRankings = await this.getTopRankings(20);
 
-            // 2. 내 랭킹 찾기 (TOP 20 안에 있으면 바로 사용)
+            // ✅ 2. TOP 20에서 내 랭킹 찾기
             let myRanking = topRankings.find(
                 (entry) => entry.userId === userId
             );
 
-            // 3. TOP 20 밖이면 별도 조회
+            // ✅ 3. TOP 20에 없으면 전체 랭킹에서 찾기
             if (!myRanking && userId && userId !== 'guest') {
-                const myHighScore = await this.getUserHighScore(userId);
-                if (myHighScore > 0) {
-                    // 내 전체 순위 계산 (간략화)
-                    const higherScoresCount = await this.getHigherScoresCount(
-                        myHighScore
-                    );
-                    myRanking = {
-                        rank: higherScoresCount + 1,
-                        userId: userId,
-                        username: this.currentUsername || 'Guest',
-                        total_score: myHighScore,
-                        countryCode: this.currentCountryCode || 'XX',
-                    };
-                }
+                const allRankings = await this.getTopRankings(500); // 전체 조회
+                myRanking = allRankings.find(
+                    (entry) => entry.userId === userId
+                );
             }
 
             return {
@@ -250,23 +250,73 @@ export class ApiConnector {
             throw error;
         }
     }
-
-    // ✅ TOP N 랭킹 조회 (사용자별 최고 점수)
     private async getTopRankings(limitCount: number = 20): Promise<any[]> {
         try {
-            // 🔥 핵심: 최근 500개만 조회 (비용 절감)
-            // 게임 초기엔 충분하고, 성장하면 Cloud Function으로 전환
             const recentScoresQuery = query(
                 scoresRef,
                 orderBy('timestamp', 'desc'),
-                limit(500) // ✅ 500개로 제한 (500 읽기 vs 전체 읽기)
+                limit(500)
             );
 
             const snapshot = await getDocs(recentScoresQuery);
 
             console.log(`📊 Firebase 읽기: ${snapshot.docs.length}개 문서`);
 
-            // 사용자별 최고 점수 계산
+            const userMaxScores = new Map<string, any>();
+
+            snapshot.forEach((docSnapshot) => {
+                const data = docSnapshot.data();
+                const userId = data.userId;
+                const score = data.score;
+
+                // ✅ 첫 10개 문서 로그 (디버깅용)
+                if (userMaxScores.size < 10) {
+                    console.log(`  문서: userId="${userId}", score=${score}`);
+                }
+
+                if (
+                    !userMaxScores.has(userId) ||
+                    userMaxScores.get(userId).score < score
+                ) {
+                    userMaxScores.set(userId, {
+                        userId: data.userId,
+                        username: data.username,
+                        total_score: score,
+                        countryCode: data.countryCode,
+                    });
+                }
+            });
+
+            console.log(`📊 중복 제거 후 유저 수: ${userMaxScores.size}명`);
+
+            const rankings = Array.from(userMaxScores.values())
+                .sort((a, b) => b.total_score - a.total_score)
+                .slice(0, limitCount)
+                .map((entry, index) => ({
+                    rank: index + 1,
+                    ...entry,
+                }));
+
+            console.log(`📊 최종 반환 랭킹: ${rankings.length}명`);
+
+            return rankings;
+        } catch (error) {
+            console.error('[Firebase] TOP 랭킹 조회 실패:', error);
+            return [];
+        }
+    }
+
+    // ✅ 전체 순위 조회 (500개 전부 반환)
+    public async getAllRankings(): Promise<RankingEntry[]> {
+        try {
+            const recentScoresQuery = query(
+                scoresRef,
+                orderBy('timestamp', 'desc'),
+                limit(500)
+            );
+
+            const snapshot = await getDocs(recentScoresQuery);
+
             const userMaxScores = new Map<string, any>();
 
             snapshot.forEach((docSnapshot) => {
@@ -287,24 +337,22 @@ export class ApiConnector {
                 }
             });
 
-            // TOP N만 반환
             const rankings = Array.from(userMaxScores.values())
                 .sort((a, b) => b.total_score - a.total_score)
-                .slice(0, limitCount)
                 .map((entry, index) => ({
                     rank: index + 1,
                     ...entry,
                 }));
 
+            console.log(`📊 전체 순위 반환: ${rankings.length}명`);
             return rankings;
         } catch (error) {
-            console.error('[Firebase] TOP 랭킹 조회 실패:', error);
+            console.error('[Firebase] 전체 순위 조회 실패:', error);
             return [];
         }
     }
     private async getHigherScoresCount(myScore: number): Promise<number> {
         try {
-            // 최근 500개 중에서만 계산 (근사값)
             const higherScoresQuery = query(
                 scoresRef,
                 orderBy('score', 'desc'),
@@ -327,7 +375,6 @@ export class ApiConnector {
                 }
             });
 
-            // 내 점수보다 높은 사용자 수 계산
             let higherCount = 0;
             userMaxScores.forEach((score) => {
                 if (score > myScore) higherCount++;
@@ -339,7 +386,7 @@ export class ApiConnector {
             return 0;
         }
     }
-    // ✅ 아이템 사용
+
     public async useGiftItem(): Promise<boolean> {
         try {
             if (!this.currentSessionId) return false;
@@ -356,7 +403,6 @@ export class ApiConnector {
                 return false;
             }
 
-            // 아이템 차감
             await setDoc(sessionDocRef, {
                 ...sessionDoc.data(),
                 itemCount: itemCount - 1,
@@ -369,7 +415,6 @@ export class ApiConnector {
         }
     }
 
-    // ✅ 아이템 환불
     public async refundGiftItem(): Promise<boolean> {
         try {
             if (!this.currentSessionId) return false;
@@ -393,7 +438,6 @@ export class ApiConnector {
         }
     }
 
-    // ✅ 아이템 보상
     public async requestItemReward(): Promise<boolean> {
         try {
             if (!this.currentSessionId) return false;
@@ -417,12 +461,10 @@ export class ApiConnector {
         }
     }
 
-    // ✅ 점수 초기화 (개발/테스트용)
     public async resetScoreAsync(): Promise<boolean> {
         try {
             if (!this.currentId) return false;
 
-            // 해당 유저의 모든 점수 삭제
             const userScoresQuery = query(
                 scoresRef,
                 where('userId', '==', this.currentId)
@@ -430,7 +472,6 @@ export class ApiConnector {
 
             const snapshot = await getDocs(userScoresQuery);
 
-            // ✅ deleteDoc 사용
             const deletePromises = snapshot.docs.map((docSnapshot) =>
                 deleteDoc(docSnapshot.ref)
             );
@@ -445,7 +486,6 @@ export class ApiConnector {
         }
     }
 
-    // ✅ 이벤트 리스너 초기화
     private initEventListeners(): void {
         EVT_HUB_SAFE.on(
             G_EVT.PLAY.REQUEST_COLLISION_SAVE,
@@ -481,6 +521,7 @@ export class ApiConnector {
             console.error('[Firebase] 랭킹 로드 실패:', error);
         }
     }
+
     public async getItemCount(): Promise<number | null> {
         try {
             if (!this.currentSessionId) return null;

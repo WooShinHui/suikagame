@@ -11,6 +11,7 @@ import { RankingBtn } from '../options/RankingBtn'; // ✅ 추가
 import { WarningOverlay } from './WarningOverlay';
 import { RandomMerge } from './RandomMerge';
 import { EVT_HUB_SAFE } from '../../events/SafeEventHub';
+import { AUTH_SERVICE } from '../../auth/AuthService';
 import { API_CONNECTOR } from '../../fetch/ApiConnector';
 
 class PLAY extends SceneX {
@@ -151,7 +152,6 @@ class PLAY extends SceneX {
 
     private buildWarningOverlay(): void {
         this._warningOverlay = new WarningOverlay(this._view);
-        this.addChild(this._warningOverlay);
     }
 
     private buildRandomMerge(): void {
@@ -177,32 +177,22 @@ class PLAY extends SceneX {
     }
 
     public async startNewGameSession(): Promise<void> {
-        const savedName = localStorage.getItem('guest_user_name');
+        console.log('🔐 통합 인증 시작...');
 
-        if (!savedName || savedName === 'null' || savedName === 'undefined') {
-            this.currentUsername = 'guest_' + Date.now();
-            console.warn(
-                '[WARN] guest_user_name 없음 → guest 자동 지정:',
-                this.currentUsername,
-            );
-        } else {
-            this.currentUsername = savedName;
-        }
+        // ✅ 통합 인증 처리 (CrazyGames → Firebase → localStorage)
+        const userInfo = await AUTH_SERVICE.authenticate();
 
-        if (!this.currentId) {
-            this.currentId = 'guest_id_' + Date.now();
-            console.warn(
-                '[WARN] userId 없음 → guest_id 자동 지정:',
-                this.currentId,
-            );
-        }
+        this.currentId = userInfo.userId;
+        this.currentUsername = userInfo.username;
+
+        console.log('✅ 인증 완료:', userInfo);
 
         console.log('🔹 Firebase 세션 생성 시작');
         await API_CONNECTOR.setCrazyGamesUser({
-            userId: this.currentId,
-            username: this.currentUsername,
-            countryCode: 'KR',
-            profilePicture: null,
+            userId: userInfo.userId,
+            username: userInfo.username,
+            countryCode: userInfo.countryCode,
+            profilePicture: userInfo.profilePicture,
         });
         console.log('✅ Firebase 세션 생성 완료');
     }

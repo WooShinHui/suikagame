@@ -1,20 +1,16 @@
 // src/scenes/play/WarningOverlay.ts
-import DomX from '../../core/DomX';
+import PureDomX from '../../core/PureDomX'; // ✅ DomX → PureDomX
 import { EVT_HUB_SAFE } from '../../events/SafeEventHub';
 import { G_EVT } from '../../events/EVT_HUB';
 import View from './View';
-import {
-    UIScale,
-    CANVAS_ORIGINAL_WIDTH,
-    CANVAS_ORIGINAL_HEIGHT,
-} from '../../ui/UIScale';
 
-export class WarningOverlay extends DomX {
+export class WarningOverlay extends PureDomX {
     private isActive = false;
 
     constructor(private _view: View) {
         super(document.createElement('div'));
 
+        // ✅ Canvas parent에 직접 추가
         const canvas = document.querySelector('canvas');
         const parent = canvas?.parentElement || document.body;
         parent.appendChild(this.htmlElement);
@@ -35,15 +31,13 @@ export class WarningOverlay extends DomX {
         document.head.appendChild(style);
     }
 
-    // ✅ 900x1600 Canvas 기준으로 오버레이 배치
     private resizeToCanvas = () => {
         const canvas = document.querySelector('canvas');
         if (!canvas) return;
 
-        // ✅ Canvas의 실제 브라우저상 위치와 크기를 직접 가져옴
         const rect = canvas.getBoundingClientRect();
 
-        // ✅ 오버레이를 Canvas의 실제 위치(rect)에 1:1로 일치시킴
+        // ✅ fixed를 사용해 viewport 기준 배치
         Object.assign(this.htmlElement.style, {
             left: `${rect.left}px`,
             top: `${rect.top}px`,
@@ -51,21 +45,22 @@ export class WarningOverlay extends DomX {
             height: `${rect.height}px`,
         });
     };
+
     public dispose() {
         EVT_HUB_SAFE.off(G_EVT.PLAY.WARNING_ON, this.show);
         EVT_HUB_SAFE.off(G_EVT.PLAY.WARNING_OFF, this.hide);
         EVT_HUB_SAFE.off(G_EVT.PLAY.GAME_OVER, this.hide);
         window.removeEventListener('resize', this.resizeToCanvas);
+
+        // ✅ DOM에서 제거
+        if (this.htmlElement.parentNode) {
+            this.htmlElement.parentNode.removeChild(this.htmlElement);
+        }
     }
 
     private create() {
-        const canvas = document.querySelector('canvas');
-        const parent = canvas?.parentElement || document.body;
-
-        parent.style.position = parent.style.position || 'relative';
-
         Object.assign(this.htmlElement.style, {
-            position: 'absolute',
+            position: 'fixed', // ✅ getBoundingClientRect() 사용 시 fixed 필수
             pointerEvents: 'none',
             zIndex: '50',
             background:
@@ -74,8 +69,6 @@ export class WarningOverlay extends DomX {
             transition: 'opacity 0.6s ease',
         });
 
-        parent.appendChild(this.htmlElement);
-
         this.resizeToCanvas();
         window.addEventListener('resize', this.resizeToCanvas);
     }
@@ -83,7 +76,6 @@ export class WarningOverlay extends DomX {
     private show = () => {
         if (!this._view.getbActive) return;
         if (this.isActive) return;
-        console.log('⚠️ 오버레이 보임');
         this.isActive = true;
         this.htmlElement.style.opacity = '1';
         this.htmlElement.style.animation =
@@ -91,7 +83,6 @@ export class WarningOverlay extends DomX {
     };
 
     private hide = () => {
-        console.log('✅ 오버레이 숨김');
         this.isActive = false;
         this.htmlElement.style.opacity = '0';
         this.htmlElement.style.animation = '';

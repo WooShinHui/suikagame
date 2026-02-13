@@ -15,9 +15,13 @@ import {
     serverTimestamp,
     Timestamp,
 } from 'firebase/firestore';
+import {
+    getAuth,
+    signInAnonymously,
+    onAuthStateChanged,
+    Auth,
+} from 'firebase/auth';
 
-// Your web app's Firebase configuration
-// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
     apiKey: 'AIzaSyA-uChyLIzO6vmW38QUCr23Qmp2VD4tDGQ',
     authDomain: 'suikagame-f0b3a.firebaseapp.com',
@@ -27,16 +31,17 @@ const firebaseConfig = {
     appId: '1:458203127958:web:05f1244b905f6e8efce2b7',
     measurementId: 'G-WW73CP8B35',
 };
-// Firebase 초기화
+
 const app = initializeApp(firebaseConfig);
 const analytics = getAnalytics(app);
-export const db = getFirestore(app);
+const auth = getAuth(app);
 
-// 컬렉션 참조 헬퍼
+export const db = getFirestore(app);
 export const sessionsRef = collection(db, 'sessions');
 export const scoresRef = collection(db, 'scores');
 
 export {
+    auth,
     doc,
     setDoc,
     getDoc,
@@ -47,5 +52,7 @@ export {
     limit,
     where,
     serverTimestamp,
+    signInAnonymously,
+    onAuthStateChanged,
     Timestamp,
 };

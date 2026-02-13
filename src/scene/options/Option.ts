@@ -1,5 +1,5 @@
 // Option.ts
-import PureDomX from '../../core/PureDomX'; // ✅ DomX → PureDomX
+import PureDomX from '../../core/PureDomX';
 import { SoundMgr } from '../../manager/SoundMgr';
 import { Score } from '../play/Score';
 import { EVT_HUB_SAFE } from '../../events/SafeEventHub';
@@ -17,11 +17,9 @@ const BGM_LIST = [
 ];
 
 export class Option extends PureDomX {
-    // ✅ DomX → PureDomX
     private overlay!: HTMLDivElement;
     private panel!: HTMLDivElement;
     private closeBtn!: HTMLButtonElement;
-    private giveupBtn!: HTMLButtonElement;
     private volumeSlider!: HTMLInputElement;
     private sfxSlider!: HTMLInputElement;
     private bgmMuteBtn!: HTMLButtonElement;
@@ -29,16 +27,14 @@ export class Option extends PureDomX {
     private sliderStyle!: HTMLStyleElement;
     private isOpen = false;
 
-    // ✅ ChangeBgm 관련 추가
     private btnBgm!: HTMLButtonElement;
-    private titleElement!: HTMLElement;
+    private titleElement!: HTMLDivElement;
     private currentBgmIndex: number = 0;
     private sparkleInterval: number | null = null;
 
     constructor(private score: Score) {
         super(document.createElement('div'));
 
-        // ✅ 로컬스토리지에서 BGM 설정 로드
         const savedBGM = localStorage.getItem('bgmVolume');
         const savedSFX = localStorage.getItem('sfxVolume');
         const savedBgmSrc = localStorage.getItem('bgm');
@@ -53,25 +49,19 @@ export class Option extends PureDomX {
             this.currentBgmIndex = Number(savedBgmIndex);
         }
 
-        // SoundMgr에 적용
         SoundMgr.handle.bgmVolume = savedBgmMuted ? 0 : bgmVolume / 100;
         SoundMgr.handle.sfxVolume = sfxVolume / 100;
-
-        // BGM 재생
         SoundMgr.handle.playBGM(bgmSrc, bgmVolume);
 
-        // BGM 변경 이벤트
         EVT_HUB_SAFE.on(G_EVT.BGM.CHANGE, (src: any) => {
             const currentBgmVolume = Number(
-                localStorage.getItem('bgmVolume') || 20,
+                localStorage.getItem('bgmVolume') || 20
             );
             const newBgmSrc = `${src.data}`;
             localStorage.setItem('bgm', newBgmSrc);
             SoundMgr.handle.playBGM(newBgmSrc, currentBgmVolume);
         });
     }
-
-    /* ================= OPEN / CLOSE ================= */
 
     public open() {
         if (this.isOpen) return;
@@ -82,10 +72,9 @@ export class Option extends PureDomX {
 
         document.body.appendChild(this.htmlElement);
 
-        // ✅ BGM 제목 반짝임 시작
         this.sparkleInterval = window.setInterval(
             () => this.sparkleTitle(),
-            2800,
+            2800
         );
     }
 
@@ -93,7 +82,6 @@ export class Option extends PureDomX {
         if (!this.isOpen) return;
         this.isOpen = false;
 
-        // ✅ BGM 반짝임 정지
         if (this.sparkleInterval !== null) {
             window.clearInterval(this.sparkleInterval);
             this.sparkleInterval = null;
@@ -104,8 +92,6 @@ export class Option extends PureDomX {
         }
     }
 
-    /* ================= UI BUILD ================= */
-
     public buildUI() {
         this.htmlElement.innerHTML = '';
 
@@ -114,7 +100,6 @@ export class Option extends PureDomX {
 
         const rect = canvas.getBoundingClientRect();
 
-        // ✅ overlay를 Canvas 영역에 정확히 맞춤
         this.overlay = document.createElement('div');
         Object.assign(this.overlay.style, {
             position: 'fixed',
@@ -129,27 +114,22 @@ export class Option extends PureDomX {
             zIndex: '1001',
         });
 
-        // ✅ panel
         this.panel = document.createElement('div');
-        const panelWidth = rect.width * 0.4;
+        const panelWidth = Math.min(rect.width * 0.75, 600);
+        const panelHeight = panelWidth * 1.1;
+
         Object.assign(this.panel.style, {
             position: 'relative',
             background:
-                'url("./assets/images/option.png") center/cover no-repeat',
+                'url("./assets/images/option.png") center/100% 100% no-repeat',
             borderRadius: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
             width: `${panelWidth}px`,
-            height: `${panelWidth}px`, // 정사각형
+            height: `${panelHeight}px`,
         });
 
-        // ✅ resize 이벤트
         const resizeHandler = () => {
             const newRect = canvas.getBoundingClientRect();
 
-            // Overlay를 Canvas에 맞춤
             Object.assign(this.overlay.style, {
                 left: `${newRect.left}px`,
                 top: `${newRect.top}px`,
@@ -157,39 +137,63 @@ export class Option extends PureDomX {
                 height: `${newRect.height}px`,
             });
 
-            // Panel 크기 조정
-            const newPanelWidth = newRect.width * 0.4;
+            const newPanelWidth = Math.min(newRect.width * 0.75, 600);
+            const newPanelHeight = newPanelWidth * 1.1;
+
             Object.assign(this.panel.style, {
                 width: `${newPanelWidth}px`,
-                height: `${newPanelWidth}px`,
+                height: `${newPanelHeight}px`,
             });
 
-            // Slider box gap
-            if (sliderBox) {
-                const panelHeight = this.panel.getBoundingClientRect().height;
-                sliderBox.style.gap = `${Math.max(
-                    12,
-                    Math.min(64, panelHeight * 0.05),
-                )}px`;
-            }
-
-            // Slider height
-            if (this.volumeSlider && this.sfxSlider) {
-                const panelHeight = this.panel.getBoundingClientRect().height;
-                const newHeight = Math.max(
-                    10,
-                    Math.min(64, panelHeight * 0.06),
+            // ✅ BGM Title 폰트 크기 반응형 조정
+            if (this.titleElement) {
+                const titleFontSize = Math.max(
+                    16,
+                    Math.min(24, newPanelWidth * 0.04)
                 );
-                this.volumeSlider.style.height = `${newHeight}px`;
-                this.sfxSlider.style.height = `${newHeight}px`;
+                this.titleElement.style.fontSize = `${titleFontSize}px`;
             }
 
-            // Thumb size
+            // ✅ 화면 비율 체크 (9:16 이하일 때 슬라이더 위로 이동)
+            const sw = window.innerWidth;
+            const sh = window.innerHeight;
+            const aspectRatio = sw / sh;
+            const targetAspectRatio = 9 / 16;
+
+            // 슬라이더 위치 조정값 (9:16 이하일 때 위로 이동)
+            const sliderOffsetAdjustment =
+                aspectRatio < targetAspectRatio ? -2 : 0;
+
+            // ✅ SFX 슬라이더 위치 조정
+            if (this.sfxSlider) {
+                const sfxSliderTop = 60 + sliderOffsetAdjustment;
+                this.sfxSlider.style.top = `${sfxSliderTop}%`;
+            }
+
+            // ✅ BGM 슬라이더 위치 조정
+            if (this.volumeSlider) {
+                const bgmSliderTop = 77 + sliderOffsetAdjustment;
+                this.volumeSlider.style.top = `${bgmSliderTop}%`;
+            }
+
+            // Slider 높이 계산
+            const sliderHeight = Math.max(
+                24,
+                Math.min(36, newPanelWidth * 0.05)
+            );
+
+            if (this.sfxSlider) {
+                this.sfxSlider.style.height = `${sliderHeight}px`;
+            }
+            if (this.volumeSlider) {
+                this.volumeSlider.style.height = `${sliderHeight}px`;
+            }
+
+            // Thumb 크기
             if (this.sliderStyle) {
-                const thumbSize = Math.max(
-                    24,
-                    Math.min(64, newPanelWidth * 0.08),
-                );
+                const thumbSize = Math.max(30, sliderHeight * 1.3);
+                const borderWidth = Math.round(thumbSize * 0.15);
+
                 this.sliderStyle.innerHTML = `
                     input[type="range"] {
                         -webkit-appearance: none;
@@ -201,7 +205,15 @@ export class Option extends PureDomX {
                         width: ${thumbSize}px;
                         height: ${thumbSize}px;
                         background: rgb(92,83,216);
-                        border: ${Math.round(thumbSize * 0.136)}px solid #fff;
+                        border: ${borderWidth}px solid #fff;
+                        border-radius: 50%;
+                        cursor: pointer;
+                    }
+                    input[type="range"]::-moz-range-thumb {
+                        width: ${thumbSize}px;
+                        height: ${thumbSize}px;
+                        background: rgb(92,83,216);
+                        border: ${borderWidth}px solid #fff;
                         border-radius: 50%;
                         cursor: pointer;
                     }
@@ -211,34 +223,29 @@ export class Option extends PureDomX {
 
         window.addEventListener('resize', resizeHandler);
 
-        /* ================= Buttons ================= */
-
-        // Close button
         this.closeBtn = this.createButton(
-            { top: '4%', right: '4%', width: '8%' },
+            { top: '3%', right: '3%', width: '10%' },
             '/assets/images/exit.png',
             () => {
                 SoundMgr.handle.playSound('btn');
                 this.close();
-            },
+            }
         );
 
-        // Give up button
-        // this.giveupBtn = this.createButton(
-        //     { top: '40%', left: '45%', bottom: '40%', width: '35%' },
-        //     '/assets/images/bt_giveup_s.png',
-        //     () => this.onGiveUp()
-        // );
-
-        /* ================= BGM Button (NEW) ================= */
         this.btnBgm = this.createButton(
-            { top: '50%', left: '10%', width: '12%' },
+            {
+                top: '19.5%',
+                left: '50%',
+                width: '35%',
+                aspectRatio: '306/126', // ✅ 추가
+                transform: 'translateX(-50%)',
+            },
             './assets/images/bt_bgm_s.png',
             () => {
                 SoundMgr.handle.playSound('btn');
                 this.changeNextBGM();
                 this.sparkleTitle();
-            },
+            }
         );
 
         this.btnBgm.addEventListener('pointerdown', () => {
@@ -254,59 +261,44 @@ export class Option extends PureDomX {
                 'url("./assets/images/bt_bgm_s.png")';
         });
 
-        /* ================= BGM Title (NEW) ================= */
         this.titleElement = document.createElement('div');
         Object.assign(this.titleElement.style, {
             position: 'absolute',
-            top: '50%',
-            left: '25%',
-            transform: 'translateY(-50%)',
-            fontFamily: '"PressStart2P-Regular", monospace',
-            fontSize: '10px',
+            top: '39%',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '70%',
+            fontFamily:
+                '"SchoolSafeDungGeunMiSo", "PressStart2P-Regular", sans-serif',
+            fontSize: '20px',
+            fontWeight: 'bold',
             letterSpacing: '1px',
-            textTransform: 'uppercase',
-            color: '#F8E6B8',
-            background: 'rgba(90, 65, 40, 0.78)',
-            padding: '8px 14px',
-            borderRadius: '8px',
+            color: '#ffffff', // ✅ 변경: '#2d1810' → '#ffffff'
             textAlign: 'center',
             whiteSpace: 'nowrap',
-            transition: 'text-shadow 0.8s ease',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
             pointerEvents: 'none',
-            boxShadow: `
-                0 0 0 2px #7a5a28,
-                0 0 0 4px #e6c87a,
-                0 0 0 6px #b08a3a,
-                inset -2px -2px 3px rgba(0,0,0,0.35)
+            // ✅ 변경: 엠보스 효과
+            textShadow: `
+                0px 2px 0px rgba(0, 0, 0, 0.3),
+                0px 3px 0px rgba(0, 0, 0, 0.2),
+                0px 4px 0px rgba(0, 0, 0, 0.1),
+                0px 1px 3px rgba(0, 0, 0, 0.5),
+                0px -1px 1px rgba(255, 255, 255, 0.3)
             `,
+            filter: 'drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.2))',
         });
         this.titleElement.textContent = BGM_LIST[this.currentBgmIndex].title;
 
-        /* ================= Sliders ================= */
-
-        const sliderBox = document.createElement('div');
-        Object.assign(sliderBox.style, {
-            position: 'absolute',
-            top: '75%',
-            left: '66%',
-            transform: 'translate(-50%, -50%)',
-            width: '40%',
-            display: 'flex',
-            flexDirection: 'column',
-        });
-
-        this.volumeSlider = this.createSlider(
-            Number(localStorage.getItem('bgmVolume') ?? 20),
-            (v) => {
-                localStorage.setItem('bgmVolume', String(v));
-                const muted = this.isMuted('bgm');
-                SoundMgr.handle.bgmVolume = muted ? 0 : v / 100;
-                this.updateSliderStyle(this.volumeSlider, v, muted);
-                this.bgmMuteBtn.style.backgroundImage =
-                    muted || v === 0
-                        ? 'url("./assets/images/sound_off.png")'
-                        : 'url("./assets/images/sound_on.png")';
+        this.sfxMuteBtn = this.createButton(
+            {
+                left: '12%',
+                top: '55%',
+                width: '14%',
             },
+            '/assets/images/sound_on.png',
+            () => this.toggleMute('sfx')
         );
 
         this.sfxSlider = this.createSlider(
@@ -320,23 +312,47 @@ export class Option extends PureDomX {
                     muted || v === 0
                         ? 'url("./assets/images/sound_off.png")'
                         : 'url("./assets/images/sound_on.png")';
-            },
+            }
         );
 
-        sliderBox.append(this.sfxSlider, this.volumeSlider);
+        Object.assign(this.sfxSlider.style, {
+            position: 'absolute',
+            left: '50%',
+            top: '60%',
+            width: '35%',
+        });
 
         this.bgmMuteBtn = this.createButton(
-            { left: '13%', top: '76%', width: '10%' },
+            {
+                left: '12%',
+                top: '72%',
+                width: '14%',
+            },
             '/assets/images/sound_on.png',
-            () => this.toggleMute('bgm'),
-        );
-        this.sfxMuteBtn = this.createButton(
-            { left: '13%', top: '63%', width: '10%' },
-            '/assets/images/sound_on.png',
-            () => this.toggleMute('sfx'),
+            () => this.toggleMute('bgm')
         );
 
-        // 초기 UI 상태 적용
+        this.volumeSlider = this.createSlider(
+            Number(localStorage.getItem('bgmVolume') ?? 20),
+            (v) => {
+                localStorage.setItem('bgmVolume', String(v));
+                const muted = this.isMuted('bgm');
+                SoundMgr.handle.bgmVolume = muted ? 0 : v / 100;
+                this.updateSliderStyle(this.volumeSlider, v, muted);
+                this.bgmMuteBtn.style.backgroundImage =
+                    muted || v === 0
+                        ? 'url("./assets/images/sound_off.png")'
+                        : 'url("./assets/images/sound_on.png")';
+            }
+        );
+
+        Object.assign(this.volumeSlider.style, {
+            position: 'absolute',
+            left: '50%',
+            top: '77%',
+            width: '35%',
+        });
+
         const savedBgmMuted = localStorage.getItem('bgmMuted') === 'true';
         const savedSfxMuted = localStorage.getItem('sfxMuted') === 'true';
         this.updateMuteIcon(this.bgmMuteBtn, savedBgmMuted);
@@ -347,32 +363,31 @@ export class Option extends PureDomX {
         this.updateSliderStyle(
             this.volumeSlider,
             savedBgmVolume,
-            savedBgmMuted,
+            savedBgmMuted
         );
         this.updateSliderStyle(this.sfxSlider, savedSfxVolume, savedSfxMuted);
         this.setSliderMuted(this.volumeSlider, this.isMuted('bgm'));
         this.setSliderMuted(this.sfxSlider, this.isMuted('sfx'));
 
-        // ✅ Panel에 모든 요소 추가
         this.panel.append(
             this.closeBtn,
-            this.btnBgm, // ✅ BGM 버튼 추가
-            this.titleElement, // ✅ BGM 제목 추가
-            sliderBox,
-            this.bgmMuteBtn,
+            this.btnBgm,
+            this.titleElement,
             this.sfxMuteBtn,
+            this.sfxSlider,
+            this.bgmMuteBtn,
+            this.volumeSlider
         );
+
         this.overlay.appendChild(this.panel);
         this.htmlElement.appendChild(this.overlay);
 
         requestAnimationFrame(() => {
-            resizeHandler(); // 초기 resize 실행
+            resizeHandler();
         });
 
         this.injectSliderStyle();
     }
-
-    /* ================= BGM 관련 (NEW) ================= */
 
     private changeNextBGM() {
         this.currentBgmIndex = (this.currentBgmIndex + 1) % BGM_LIST.length;
@@ -384,19 +399,27 @@ export class Option extends PureDomX {
 
     private sparkleTitle() {
         if (!this.titleElement) return;
+        // ✅ 변경: 반짝임 효과 (엠보스 유지)
         this.titleElement.style.textShadow = `
-            0 0 4px rgba(255, 220, 160, 0.45),
-            0 0 8px rgba(255, 200, 120, 0.25)
+            0px 2px 0px rgba(0, 0, 0, 0.3),
+            0px 3px 0px rgba(0, 0, 0, 0.2),
+            0px 4px 0px rgba(0, 0, 0, 0.1),
+            0px 1px 3px rgba(255, 255, 100, 0.8),
+            0px 0px 15px rgba(255, 220, 160, 1),
+            0px -1px 1px rgba(255, 255, 255, 0.5)
         `;
         setTimeout(() => {
             if (this.titleElement) {
-                this.titleElement.style.textShadow = '0 0 1px rgba(0,0,0,0.7)';
+                this.titleElement.style.textShadow = `
+                    0px 2px 0px rgba(0, 0, 0, 0.3),
+                    0px 3px 0px rgba(0, 0, 0, 0.2),
+                    0px 4px 0px rgba(0, 0, 0, 0.1),
+                    0px 1px 3px rgba(0, 0, 0, 0.5),
+                    0px -1px 1px rgba(255, 255, 255, 0.3)
+                `;
             }
         }, 900);
     }
-
-    /* ================= Sync Overlay ================= */
-
     private syncOverlay() {
         const canvas = document.querySelector('canvas') as HTMLCanvasElement;
         if (!canvas || !this.overlay) return;
@@ -410,12 +433,10 @@ export class Option extends PureDomX {
         });
     }
 
-    /* ================= HELPERS ================= */
-
     private createButton(
         pos: Partial<CSSStyleDeclaration>,
         img: string,
-        onClick: () => void,
+        onClick: () => void
     ) {
         const btn = document.createElement('button');
         Object.assign(btn.style, {
@@ -438,7 +459,7 @@ export class Option extends PureDomX {
         input.value = String(value);
         Object.assign(input.style, {
             width: '100%',
-            height: '36px',
+            height: '30px',
         });
 
         input.oninput = (e) => {
@@ -487,7 +508,7 @@ export class Option extends PureDomX {
     private updateSliderStyle(
         input: HTMLInputElement,
         val: number,
-        muted = false,
+        muted = false
     ) {
         if (muted) {
             input.style.opacity = '0.4';
@@ -521,20 +542,15 @@ export class Option extends PureDomX {
                 border-radius: 50%;
                 cursor: pointer;
             }
+            input[type="range"]::-moz-range-thumb {
+                background: rgb(92,83,216);
+                border: 6px solid #fff;
+                border-radius: 50%;
+                cursor: pointer;
+            }
         `;
         document.head.appendChild(this.sliderStyle);
     }
-
-    // private onGiveUp() {
-    //     if (confirm('정말 포기하시겠습니까?')) {
-    //         console.log('포기');
-    //         EVT_HUB_SAFE.emit(G_EVT.PLAY.GAME_OVER, {
-    //             finalScore: this.score.getFinalScore(),
-    //             mode: 'GIVE_UP',
-    //         });
-    //         this.close();
-    //     }
-    // }
 
     private isMuted(type: 'bgm' | 'sfx') {
         return localStorage.getItem(`${type}Muted`) === 'true';
