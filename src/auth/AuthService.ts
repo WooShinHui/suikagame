@@ -80,13 +80,15 @@ export class AuthService {
 
             const user = await window.CrazyGames.SDK.user.getUser();
 
-            if (!user || !user.userId) {
+            if (!user || (!user.userId && !user.username)) {
                 console.log('ℹ️ CrazyGames 비로그인 유저');
                 return null;
             }
 
             return {
-                userId: `cg_${user.userId}`, // CrazyGames 유저임을 명시
+                userId: user.userId
+                    ? `cg_${user.userId}`
+                    : `cg_local_${Date.now()}`, // ← userId 없으면 임시 생성
                 username: user.username || 'CrazyGames User',
                 countryCode: user.countryCode || 'XX',
                 profilePicture: user.profilePictureUrl || null,

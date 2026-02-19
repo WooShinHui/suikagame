@@ -161,8 +161,16 @@ export class Option extends PureDomX {
             const targetAspectRatio = 9 / 16;
 
             // 슬라이더 위치 조정값 (9:16 이하일 때 위로 이동)
-            const sliderOffsetAdjustment =
-                aspectRatio < targetAspectRatio ? -2 : 0;
+            const minRatio = targetAspectRatio * 0.75; // 더 좁아지면 최대값 유지
+            const t = Math.min(
+                1,
+                Math.max(
+                    0,
+                    (targetAspectRatio - aspectRatio) /
+                        (targetAspectRatio - minRatio)
+                )
+            );
+            const sliderOffsetAdjustment = -(t * 4);
 
             // ✅ SFX 슬라이더 위치 조정
             if (this.sfxSlider) {

@@ -1,8 +1,6 @@
-// src/Main.ts
 import '../js/createjs.min.js';
 import '../js/ScaleBitmap.js';
 import '../js/RotationPlugin.js';
-
 import App from './core/App';
 import { AppConfig } from './core/CoreApp';
 import PLAY from './scene/play/PLAY';
@@ -56,10 +54,10 @@ async function initCrazyGames() {
         console.log('🔍 CrazyGames userInfo:', userInfo);
 
         // ✅ userId 체크 (userInfo가 있어도 userId가 없을 수 있음)
-        if (userInfo && userInfo.userId) {
-            console.log('✅ CrazyGames 로그인 사용자:', userInfo);
+        if (userInfo && (userInfo.userId || userInfo.username)) {
+            console.log('✅ CrazyGames 사용자:', userInfo);
             return {
-                userId: userInfo.userId,
+                userId: userInfo.userId || getOrCreateLocalUserId(), // ← userId 없으면 로컬 ID 사용
                 username: userInfo.username || 'Player',
                 countryCode: userInfo.countryCode || 'XX',
                 profilePicture: userInfo.profilePictureUrl || null,

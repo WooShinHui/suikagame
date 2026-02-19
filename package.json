@@ -6,7 +6,7 @@
     "source": "index.html",
     "scripts": {
         "start": "parcel index.html",
-        "build": "parcel build index.html",
+        "build": "parcel build index.html --no-minify",
         "remove": "remove.bat",
         "removeF": "del /s /q .\\dist\\*.fla",
         "removeH": "for %i in (dist\\*.html) do if not %i==dist\\index.html del %i",
@@ -23,6 +23,11 @@
         "parcel-plugin-static-files-copy": "^2.6.0",
         "reset-css": "^5.0.2",
         "webfontloader": "^1.6.28"
+    },
+    "overrides": {
+        "parcel-bundler": {
+            "terser": "^5.30.0"
+        }
     },
     "devDependencies": {
         "typescript": "^5.8.3"

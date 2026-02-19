@@ -14,6 +14,8 @@ import {
     where,
     serverTimestamp,
     Timestamp,
+    startAfter, // ← 추가
+    getCountFromServer, // ← 추가
 } from 'firebase/firestore';
 import {
     getAuth,
@@ -39,7 +41,7 @@ const auth = getAuth(app);
 export const db = getFirestore(app);
 export const sessionsRef = collection(db, 'sessions');
 export const scoresRef = collection(db, 'scores');
-
+export const bestScoresRef = collection(db, 'bestScores'); // ← 추가
 export {
     auth,
     doc,
@@ -55,4 +57,6 @@ export {
     signInAnonymously,
     onAuthStateChanged,
     Timestamp,
+    startAfter, // ← 추가
+    getCountFromServer,
 };

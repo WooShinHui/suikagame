@@ -1,6 +1,5 @@
 import CoreApp, { AppConfig } from '../core/CoreApp';
 import SceneX from './SceneX';
-import WebFont from 'webfontloader';
 import { SystemMgr } from '../manager/SystemMgr';
 import { EventX } from './BaseComponent';
 import { RscMgr } from '../manager/RscMgr';
@@ -86,7 +85,7 @@ class App extends CoreApp {
                 RscMgr.handle.MANIFEST = result;
                 console.log(
                     `%c매니페스트 로드 성공`,
-                    'font-weight: bold;background: yellow; color: blue; font-size: 20px;',
+                    'font-weight: bold;background: yellow; color: blue; font-size: 20px;'
                 );
                 resolve();
             });
@@ -114,7 +113,7 @@ class App extends CoreApp {
             await RscMgr.handle.loadManifestResource();
         } catch ($err: unknown) {
             console.error(
-                `[Error] 매니페스트에 등록된 리소스 로드에 실패 했습니다. msg:${$err}`,
+                `[Error] 매니페스트에 등록된 리소스 로드에 실패 했습니다. msg:${$err}`
             );
         }
     }
@@ -159,7 +158,7 @@ class App extends CoreApp {
                     async ($e: EventX) => {
                         await this.start($e.sceneName);
                     },
-                    this,
+                    this
                 );
 
                 SystemMgr.handle.currentSceneName = scene.name;
@@ -193,7 +192,7 @@ class App extends CoreApp {
 
         if (!isValid) {
             console.error(
-                `[Error] ${$sceneName} 이란 이름의 씬이 존재하지 않습니다.`,
+                `[Error] ${$sceneName} 이란 이름의 씬이 존재하지 않습니다.`
             );
         }
     }
@@ -220,14 +219,6 @@ class App extends CoreApp {
         this._stage.y = 0; // 세로는 항상 꽉 차있음
 
         this._stage.update();
-
-        console.log('📐 handleResize 실행:', {
-            scale: UIScale.scale,
-            stageScaleX: this._stage.scaleX,
-            stageX: this._stage.x,
-            canvasWidth: canvas.width,
-            canvasHeight: canvas.height,
-        });
     }
 
     private observeCanvasResize() {
@@ -242,10 +233,10 @@ class App extends CoreApp {
     }
     private updateLoadShot() {
         const canvas = document.getElementById(
-            'create_cvs',
+            'create_cvs'
         ) as HTMLCanvasElement;
         const loadShot = document.getElementById(
-            'loadShot',
+            'loadShot'
         ) as HTMLImageElement;
 
         if (!canvas || !loadShot) return;
@@ -265,7 +256,7 @@ class App extends CoreApp {
     }
     private showLoadShot() {
         const loadShot = document.getElementById(
-            'loadShot',
+            'loadShot'
         ) as HTMLImageElement;
         if (!loadShot) return;
 
@@ -274,7 +265,7 @@ class App extends CoreApp {
 
     private hideLoadShot() {
         const loadShot = document.getElementById(
-            'loadShot',
+            'loadShot'
         ) as HTMLImageElement;
         if (!loadShot) return;
 

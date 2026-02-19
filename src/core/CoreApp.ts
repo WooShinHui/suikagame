@@ -9,7 +9,7 @@ import SceneX from './SceneX';
 import ContainerX from './ContainerX';
 import { SystemMgr } from '../manager/SystemMgr';
 import { TimeMgr } from '../manager/TimeMgr';
-import 'reset-css';
+// import 'reset-css';
 import { SoundMgr } from '../manager/SoundMgr';
 import { UIScale, SAFE_WIDTH, SAFE_HEIGHT } from '../ui/UIScale';
 /**

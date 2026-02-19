@@ -3,9 +3,11 @@ import { EVT_HUB_SAFE } from '../events/SafeEventHub';
 import { G_EVT } from '../events/EVT_HUB';
 import CryptoJS from 'crypto-js';
 import {
+    // ✅ bestScoresRef 추가 필요 (firebaseConfig.ts에서 export)
     db,
     sessionsRef,
     scoresRef,
+    bestScoresRef, // ← firebaseConfig에 추가해야 함 (아래 주석 참고)
     doc,
     setDoc,
     getDoc,
@@ -16,15 +18,30 @@ import {
     limit,
     where,
     serverTimestamp,
+    startAfter, // ← firebaseConfig에서 re-export 또는 아래처럼 직접 import
 } from '../firebase/firebaseConfig';
 
-// ✅ 타입 정의
+// ✅ getCountFromServer는 firebase/firestore에서 직접 import
+import { getCountFromServer } from 'firebase/firestore';
+
+// ─────────────────────────────────────────────
+// firebaseConfig.ts 에 아래 두 줄 추가 필요:
+//
+//   export const bestScoresRef = collection(db, 'bestScores');
+//   export { startAfter } from 'firebase/firestore';
+// ─────────────────────────────────────────────
+
 interface RankingEntry {
     rank: number;
     username: string;
     total_score: number;
     userId: string;
     countryCode?: string;
+}
+
+interface PaginatedRankings {
+    rankings: RankingEntry[];
+    lastDoc: any | null; // Firestore DocumentSnapshot (커서)
 }
 
 export class ApiConnector {
@@ -48,8 +65,12 @@ export class ApiConnector {
     }
 
     public refreshSession() {
-        console.log('[Firebase] refreshSession 호출 (현재는 불필요)');
+        console.log('[Firebase] refreshSession 호출');
     }
+
+    // ─────────────────────────────────────────────
+    // 유저 세션 초기화
+    // ─────────────────────────────────────────────
 
     public async setCrazyGamesUser(userInfo: {
         userId: string;
@@ -77,26 +98,21 @@ export class ApiConnector {
         countryCode: string;
     }) {
         try {
-            if (!userInfo.userId) {
-                throw new Error('userId is required');
-            }
+            if (!userInfo.userId) throw new Error('userId is required');
 
             this.currentSessionId = `${userInfo.userId}_${Date.now()}`;
-
             this.sessionSecret = CryptoJS.SHA256(
                 `${this.currentSessionId}_${Date.now()}_${Math.random()}`
             ).toString();
 
-            const sessionData = {
+            await setDoc(doc(sessionsRef, this.currentSessionId), {
                 userId: userInfo.userId,
                 username: userInfo.username || 'Guest',
                 countryCode: userInfo.countryCode || 'XX',
                 sessionSecret: this.sessionSecret,
                 createdAt: serverTimestamp(),
                 itemCount: 1,
-            };
-
-            await setDoc(doc(sessionsRef, this.currentSessionId), sessionData);
+            });
 
             console.log('✅ Firebase 세션 생성 완료:', this.currentSessionId);
 
@@ -113,6 +129,13 @@ export class ApiConnector {
         }
     }
 
+    // ─────────────────────────────────────────────
+    // 점수 저장 (핵심 개선)
+    //
+    // 변경 전: getTopRankings(500) → 500 reads
+    // 변경 후: getDoc(bestScores/{userId}) → 1 read
+    // ─────────────────────────────────────────────
+
     public async sendFinalScore(
         finalScore: number,
         userId: string,
@@ -123,8 +146,6 @@ export class ApiConnector {
 
         try {
             const effectiveUserId = userId || this.currentId || 'guest';
-            console.log('🔑 effectiveUserId:', effectiveUserId); // ✅ 추가
-
             const sId = gameSessionId || this.currentSessionId;
 
             if (!sId) {
@@ -140,264 +161,254 @@ export class ApiConnector {
                 return;
             }
 
-            console.log('✅ 세션 검증 완료');
-
-            // ✅ 1. 최고 점수 조회 (getTopRankings 재사용)
-            const allRankings = await this.getTopRankings(500);
-
-            // ✅ 디버깅 로그 추가
-            console.log('📊 전체 랭킹 개수:', allRankings.length);
-            console.log('📊 첫 3개 랭킹:', allRankings.slice(0, 3));
-            console.log('🔍 내 userId로 검색:', effectiveUserId);
-
-            const myData = allRankings.find((entry) => {
-                console.log(
-                    `   비교: "${entry.userId}" === "${effectiveUserId}" ?`,
-                    entry.userId === effectiveUserId
-                );
-                return entry.userId === effectiveUserId;
-            });
-
-            console.log('🎯 찾은 내 데이터:', myData); // ✅ 추가
-
-            const previousHighScore = myData ? myData.total_score : 0;
+            // ✅ 이전 최고점 조회: bestScores/{userId} 단 1 read
+            const bestScoreDoc = await getDoc(
+                doc(bestScoresRef, effectiveUserId)
+            );
+            const previousHighScore = bestScoreDoc.exists()
+                ? (bestScoreDoc.data().score as number)
+                : 0;
 
             console.log(
-                `📊 이전 최고 점수: ${previousHighScore}, 현재 점수: ${finalScore}`
+                `📊 이전 최고: ${previousHighScore}, 현재: ${finalScore}`
             );
 
-            // ✅ 2. 현재 점수가 최고 점수보다 높을 때만 저장
-            let isNewRecord = false;
-            if (finalScore > previousHighScore) {
+            const isNewRecord = finalScore > previousHighScore;
+
+            if (isNewRecord) {
                 const scoreId = `${effectiveUserId}_${Date.now()}`;
-                await setDoc(doc(scoresRef, scoreId), {
-                    userId: effectiveUserId,
-                    username: username || this.currentUsername || 'Guest',
-                    countryCode: this.currentCountryCode || 'XX',
-                    score: finalScore,
-                    sessionId: sId,
-                    timestamp: serverTimestamp(),
-                });
+
+                // ✅ 두 컬렉션에 병렬 write (read보다 훨씬 저렴)
+                await Promise.all([
+                    // 1) 원본 로그 (기존 유지)
+                    setDoc(doc(scoresRef, scoreId), {
+                        userId: effectiveUserId,
+                        username: username || this.currentUsername || 'Guest',
+                        countryCode: this.currentCountryCode || 'XX',
+                        score: finalScore,
+                        sessionId: sId,
+                        timestamp: serverTimestamp(),
+                    }),
+                    // 2) ✅ 유저당 1개 최고점 문서 (새 컬렉션)
+                    setDoc(doc(bestScoresRef, effectiveUserId), {
+                        userId: effectiveUserId,
+                        username: username || this.currentUsername || 'Guest',
+                        countryCode: this.currentCountryCode || 'XX',
+                        score: finalScore,
+                        updatedAt: serverTimestamp(),
+                    }),
+                ]);
 
                 console.log(
-                    `🏆 신기록! Firebase 점수 저장: ${finalScore} (이전: ${previousHighScore})`
+                    `🏆 신기록! ${finalScore} (이전: ${previousHighScore})`
                 );
-                isNewRecord = true;
             } else {
                 console.log(
-                    `📉 점수 ${finalScore}은 최고 점수 ${previousHighScore}보다 낮아 저장 안 함`
+                    `📉 ${finalScore} < 최고점 ${previousHighScore}, 저장 안 함`
                 );
             }
 
-            // ✅ 3. Result 화면에 최고 점수 전달
             EVT_HUB_SAFE.emit(G_EVT.PLAY.SHOW_RESULT, {
                 mode: 'GAME_OVER',
                 userId: effectiveUserId,
-                finalScore: finalScore,
+                finalScore,
                 previousHighScore: Math.max(finalScore, previousHighScore),
-                isNewRecord: isNewRecord,
+                isNewRecord,
             });
-        } catch (error) {
+        } catch (error: any) {
             console.error('❌ Firebase 점수 저장 실패:', error);
             alert(`점수 저장 실패: ${error.message}`);
         }
     }
 
-    private async getUserHighScore(userId: string): Promise<number> {
+    // ─────────────────────────────────────────────
+    // 랭킹 조회 (getRankingData)
+    //
+    // 변경 전: 최대 1,500 reads
+    // 변경 후: 22~23 reads (top20=20, myDoc=1, count=1~2)
+    // ─────────────────────────────────────────────
+
+    public async getRankingData(userId: string): Promise<{
+        topRankings: RankingEntry[];
+        myRanking: RankingEntry | null;
+    }> {
         try {
-            const q = query(
-                scoresRef,
-                where('userId', '==', userId),
-                orderBy('score', 'desc'),
-                limit(1)
-            );
+            // ✅ TOP 20 + 내 순위 병렬 조회
+            const [{ rankings: topRankings }, myRanking] = await Promise.all([
+                this.getTopBestScores(20),
+                userId && userId !== 'guest'
+                    ? this.getMyRanking(userId)
+                    : Promise.resolve(null),
+            ]);
 
-            const snapshot = await getDocs(q);
+            // TOP 20 rank 번호 부여
+            topRankings.forEach((r, i) => (r.rank = i + 1));
 
-            if (snapshot.empty) return 0;
-
-            const highScore = snapshot.docs[0].data().score;
-            return highScore;
-        } catch (error) {
-            console.error('[Firebase] 최고 점수 조회 실패:', error);
-            return 0;
-        }
-    }
-    public async getRankingData(userId: string): Promise<any> {
-        try {
-            // ✅ 1. TOP 랭킹 조회 (이미 모든 유저의 최고 점수 계산됨)
-            const topRankings = await this.getTopRankings(20);
-
-            // ✅ 2. TOP 20에서 내 랭킹 찾기
-            let myRanking = topRankings.find(
-                (entry) => entry.userId === userId
-            );
-
-            // ✅ 3. TOP 20에 없으면 전체 랭킹에서 찾기
-            if (!myRanking && userId && userId !== 'guest') {
-                const allRankings = await this.getTopRankings(500); // 전체 조회
-                myRanking = allRankings.find(
-                    (entry) => entry.userId === userId
-                );
-            }
-
-            return {
-                topRankings,
-                myRanking: myRanking || null,
-            };
+            return { topRankings, myRanking };
         } catch (error) {
             console.error('[Firebase] 랭킹 조회 실패:', error);
             throw error;
         }
     }
-    private async getTopRankings(limitCount: number = 20): Promise<any[]> {
+
+    // ─────────────────────────────────────────────
+    // TOP N 조회 with 페이지네이션 커서
+    //
+    // bestScores 컬렉션: 유저당 1개 문서
+    // 20명 조회 = 정확히 20 reads
+    // ─────────────────────────────────────────────
+
+    public async getTopBestScores(
+        pageSize: number = 20,
+        lastDoc: any = null, // Firestore DocumentSnapshot 커서
+        rankOffset: number = 0
+    ): Promise<PaginatedRankings> {
         try {
-            const recentScoresQuery = query(
-                scoresRef,
-                orderBy('timestamp', 'desc'),
-                limit(500)
+            const q = lastDoc
+                ? query(
+                      bestScoresRef,
+                      orderBy('score', 'desc'),
+                      startAfter(lastDoc),
+                      limit(pageSize)
+                  )
+                : query(
+                      bestScoresRef,
+                      orderBy('score', 'desc'),
+                      limit(pageSize)
+                  );
+
+            const snapshot = await getDocs(q);
+            console.log(
+                `📊 bestScores 읽기: ${snapshot.docs.length}개 (offset: ${rankOffset})`
             );
 
-            const snapshot = await getDocs(recentScoresQuery);
+            const rankings: RankingEntry[] = snapshot.docs.map((d, i) => ({
+                rank: rankOffset + i + 1,
+                userId: d.data().userId,
+                username: d.data().username,
+                total_score: d.data().score,
+                countryCode: d.data().countryCode,
+            }));
 
-            console.log(`📊 Firebase 읽기: ${snapshot.docs.length}개 문서`);
+            // 다음 페이지 커서 (더 이상 없으면 null)
+            const newLastDoc =
+                snapshot.docs.length === pageSize
+                    ? snapshot.docs[snapshot.docs.length - 1]
+                    : null;
 
-            const userMaxScores = new Map<string, any>();
-
-            snapshot.forEach((docSnapshot) => {
-                const data = docSnapshot.data();
-                const userId = data.userId;
-                const score = data.score;
-
-                // ✅ 첫 10개 문서 로그 (디버깅용)
-                if (userMaxScores.size < 10) {
-                    console.log(`  문서: userId="${userId}", score=${score}`);
-                }
-
-                if (
-                    !userMaxScores.has(userId) ||
-                    userMaxScores.get(userId).score < score
-                ) {
-                    userMaxScores.set(userId, {
-                        userId: data.userId,
-                        username: data.username,
-                        total_score: score,
-                        countryCode: data.countryCode,
-                    });
-                }
-            });
-
-            console.log(`📊 중복 제거 후 유저 수: ${userMaxScores.size}명`);
-
-            const rankings = Array.from(userMaxScores.values())
-                .sort((a, b) => b.total_score - a.total_score)
-                .slice(0, limitCount)
-                .map((entry, index) => ({
-                    rank: index + 1,
-                    ...entry,
-                }));
-
-            console.log(`📊 최종 반환 랭킹: ${rankings.length}명`);
-
-            return rankings;
+            return { rankings, lastDoc: newLastDoc };
         } catch (error) {
-            console.error('[Firebase] TOP 랭킹 조회 실패:', error);
-            return [];
+            console.error('[Firebase] TOP bestScores 조회 실패:', error);
+            return { rankings: [], lastDoc: null };
         }
     }
 
-    // ✅ 전체 순위 조회 (500개 전부 반환)
-    public async getAllRankings(): Promise<RankingEntry[]> {
+    // ─────────────────────────────────────────────
+    // 내 순위 조회
+    //
+    // 1 read (내 문서) + 1 count read (내 점수보다 높은 사람 수)
+    // ─────────────────────────────────────────────
+
+    public async getMyRanking(userId: string): Promise<RankingEntry | null> {
         try {
-            const recentScoresQuery = query(
-                scoresRef,
-                orderBy('timestamp', 'desc'),
-                limit(500)
+            const myDoc = await getDoc(doc(bestScoresRef, userId));
+            if (!myDoc.exists()) return null;
+
+            const myScore = myDoc.data().score as number;
+
+            // ✅ count() 집계 쿼리: 내 점수보다 높은 사람 수 (1 read)
+            const higherQuery = query(
+                bestScoresRef,
+                where('score', '>', myScore)
             );
+            const countSnapshot = await getCountFromServer(higherQuery);
+            const myRank = countSnapshot.data().count + 1;
 
-            const snapshot = await getDocs(recentScoresQuery);
-
-            const userMaxScores = new Map<string, any>();
-
-            snapshot.forEach((docSnapshot) => {
-                const data = docSnapshot.data();
-                const userId = data.userId;
-                const score = data.score;
-
-                if (
-                    !userMaxScores.has(userId) ||
-                    userMaxScores.get(userId).score < score
-                ) {
-                    userMaxScores.set(userId, {
-                        userId: data.userId,
-                        username: data.username,
-                        total_score: score,
-                        countryCode: data.countryCode,
-                    });
-                }
-            });
-
-            const rankings = Array.from(userMaxScores.values())
-                .sort((a, b) => b.total_score - a.total_score)
-                .map((entry, index) => ({
-                    rank: index + 1,
-                    ...entry,
-                }));
-
-            console.log(`📊 전체 순위 반환: ${rankings.length}명`);
-            return rankings;
+            return {
+                rank: myRank,
+                userId,
+                username: myDoc.data().username,
+                total_score: myScore,
+                countryCode: myDoc.data().countryCode,
+            };
         } catch (error) {
-            console.error('[Firebase] 전체 순위 조회 실패:', error);
-            return [];
+            console.error('[Firebase] 내 순위 조회 실패:', error);
+            return null;
         }
     }
-    private async getHigherScoresCount(myScore: number): Promise<number> {
+
+    // ─────────────────────────────────────────────
+    // 내 주변 ±5위 조회
+    //
+    // score 범위 쿼리 사용 → 정확히 11 reads (앞5 + 나포함뒤6)
+    // 커서 방식 대비 훨씬 효율적
+    // ─────────────────────────────────────────────
+
+    public async getNearbyBestRankings(
+        myRank: number,
+        myScore: number
+    ): Promise<RankingEntry[]> {
         try {
-            const higherScoresQuery = query(
-                scoresRef,
+            // 내 점수보다 높은 5명 (asc 정렬 → 역순으로 높은 순 만들기)
+            const aboveQuery = query(
+                bestScoresRef,
+                where('score', '>', myScore),
+                orderBy('score', 'asc'),
+                limit(5)
+            );
+
+            // 나 포함 내 점수 이하 6명 (desc 정렬)
+            const belowQuery = query(
+                bestScoresRef,
+                where('score', '<=', myScore),
                 orderBy('score', 'desc'),
-                limit(500)
+                limit(6)
             );
 
-            const snapshot = await getDocs(higherScoresQuery);
+            const [aboveSnap, belowSnap] = await Promise.all([
+                getDocs(aboveQuery),
+                getDocs(belowQuery),
+            ]);
 
-            const userMaxScores = new Map<string, number>();
-            snapshot.forEach((docSnapshot) => {
-                const data = docSnapshot.data();
-                const userId = data.userId;
-                const score = data.score;
+            // aboveSnap은 asc 정렬이므로 reverse → 내 위쪽을 높은 점수 순으로
+            const aboveDocs = [...aboveSnap.docs].reverse();
+            const belowDocs = belowSnap.docs;
 
-                if (
-                    !userMaxScores.has(userId) ||
-                    userMaxScores.get(userId)! < score
-                ) {
-                    userMaxScores.set(userId, score);
-                }
-            });
+            const allDocs = [...aboveDocs, ...belowDocs];
+            const startRank = myRank - aboveDocs.length;
 
-            let higherCount = 0;
-            userMaxScores.forEach((score) => {
-                if (score > myScore) higherCount++;
-            });
+            const result: RankingEntry[] = allDocs.map((d, i) => ({
+                rank: startRank + i,
+                userId: d.data().userId,
+                username: d.data().username,
+                total_score: d.data().score,
+                countryCode: d.data().countryCode,
+            }));
 
-            return higherCount;
+            console.log(
+                `👥 내 주변 ${result.length}명 (${result[0]?.rank}위 ~ ${
+                    result[result.length - 1]?.rank
+                }위)`
+            );
+            return result;
         } catch (error) {
-            console.error('[Firebase] 순위 계산 실패:', error);
-            return 0;
+            console.error('[Firebase] 내 주변 순위 조회 실패:', error);
+            return [];
         }
     }
+
+    // ─────────────────────────────────────────────
+    // 아이템 관련
+    // ─────────────────────────────────────────────
 
     public async useGiftItem(): Promise<boolean> {
         try {
             if (!this.currentSessionId) return false;
-
             const sessionDocRef = doc(sessionsRef, this.currentSessionId);
             const sessionDoc = await getDoc(sessionDocRef);
-
             if (!sessionDoc.exists()) return false;
 
             const itemCount = sessionDoc.data().itemCount || 0;
-
             if (itemCount <= 0) {
                 alert('아이템이 부족합니다.');
                 return false;
@@ -407,7 +418,6 @@ export class ApiConnector {
                 ...sessionDoc.data(),
                 itemCount: itemCount - 1,
             });
-
             return true;
         } catch (error) {
             console.error('[Firebase] 아이템 사용 실패:', error);
@@ -418,19 +428,14 @@ export class ApiConnector {
     public async refundGiftItem(): Promise<boolean> {
         try {
             if (!this.currentSessionId) return false;
-
             const sessionDocRef = doc(sessionsRef, this.currentSessionId);
             const sessionDoc = await getDoc(sessionDocRef);
-
             if (!sessionDoc.exists()) return false;
-
-            const itemCount = sessionDoc.data().itemCount || 0;
 
             await setDoc(sessionDocRef, {
                 ...sessionDoc.data(),
-                itemCount: itemCount + 1,
+                itemCount: (sessionDoc.data().itemCount || 0) + 1,
             });
-
             return true;
         } catch (error) {
             console.error('[Firebase] 아이템 환불 실패:', error);
@@ -441,25 +446,38 @@ export class ApiConnector {
     public async requestItemReward(): Promise<boolean> {
         try {
             if (!this.currentSessionId) return false;
-
             const sessionDocRef = doc(sessionsRef, this.currentSessionId);
             const sessionDoc = await getDoc(sessionDocRef);
-
             if (!sessionDoc.exists()) return false;
-
-            const itemCount = sessionDoc.data().itemCount || 0;
 
             await setDoc(sessionDocRef, {
                 ...sessionDoc.data(),
-                itemCount: itemCount + 1,
+                itemCount: (sessionDoc.data().itemCount || 0) + 1,
             });
-
             return true;
         } catch (error) {
             console.error('[Firebase] 아이템 보상 실패:', error);
             return false;
         }
     }
+
+    public async getItemCount(): Promise<number | null> {
+        try {
+            if (!this.currentSessionId) return null;
+            const sessionDoc = await getDoc(
+                doc(sessionsRef, this.currentSessionId)
+            );
+            if (!sessionDoc.exists()) return null;
+            return sessionDoc.data().itemCount || 0;
+        } catch (error) {
+            console.error('[Firebase] 아이템 개수 조회 실패:', error);
+            return null;
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    // 점수 초기화 (scores + bestScores 모두)
+    // ─────────────────────────────────────────────
 
     public async resetScoreAsync(): Promise<boolean> {
         try {
@@ -469,22 +487,24 @@ export class ApiConnector {
                 scoresRef,
                 where('userId', '==', this.currentId)
             );
-
             const snapshot = await getDocs(userScoresQuery);
+            const deletePromises = snapshot.docs.map((d) => deleteDoc(d.ref));
 
-            const deletePromises = snapshot.docs.map((docSnapshot) =>
-                deleteDoc(docSnapshot.ref)
-            );
+            // ✅ bestScores 문서도 삭제
+            deletePromises.push(deleteDoc(doc(bestScoresRef, this.currentId)));
 
             await Promise.all(deletePromises);
-
-            console.log('✅ 점수 초기화 완료');
+            console.log('✅ 점수 초기화 완료 (scores + bestScores)');
             return true;
         } catch (error) {
             console.error('[Firebase] 점수 초기화 실패:', error);
             return false;
         }
     }
+
+    // ─────────────────────────────────────────────
+    // 이벤트 리스너
+    // ─────────────────────────────────────────────
 
     private initEventListeners(): void {
         EVT_HUB_SAFE.on(
@@ -499,7 +519,6 @@ export class ApiConnector {
 
     private handleCollisionSaveRequest(event: any): void {
         const { finalScore, gameSessionId, username } = event.data;
-
         this.sendFinalScore(
             finalScore,
             this.currentId || 'guest',
@@ -511,33 +530,24 @@ export class ApiConnector {
     private async loadRanking(userId: string) {
         try {
             const data = await this.getRankingData(userId);
-
             EVT_HUB_SAFE.emit(G_EVT.PLAY.SHOW_RESULT, {
                 mode: 'START',
-                userId: userId,
+                userId,
                 ranking: data.topRankings,
             });
         } catch (error) {
             console.error('[Firebase] 랭킹 로드 실패:', error);
         }
     }
-
-    public async getItemCount(): Promise<number | null> {
-        try {
-            if (!this.currentSessionId) return null;
-
-            const sessionDocRef = doc(sessionsRef, this.currentSessionId);
-            const sessionDoc = await getDoc(sessionDocRef);
-
-            if (!sessionDoc.exists()) return null;
-
-            const itemCount = sessionDoc.data().itemCount || 0;
-            return itemCount;
-        } catch (error) {
-            console.error('[Firebase] 아이템 개수 조회 실패:', error);
-            return null;
-        }
-    }
 }
 
 export const API_CONNECTOR = ApiConnector.getInstance();
+
+// ═══════════════════════════════════════════════════════════════
+// 제거된 함수 목록 (사용처 없음, 기능 대체됨)
+// ───────────────────────────────────────────────────────────────
+// ❌ getUserHighScore(userId)       → bestScores 직접 read로 대체
+// ❌ getHigherScoresCount(myScore) → getCountFromServer()로 대체
+// ❌ getAllRankings()               → getNearbyBestRankings()로 대체
+// ❌ getTopRankings(limitCount)    → getTopBestScores()로 대체
+// ═══════════════════════════════════════════════════════════════
