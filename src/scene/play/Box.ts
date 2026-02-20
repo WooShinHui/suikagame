@@ -13,8 +13,8 @@ export class Box extends ContainerX {
         this.scaleX = 0.7;
         this.scaleY = 0.7;
 
-        this.x = UIScale.safeToCanvasX(SAFE_WIDTH - 684);
-        this.y = UIScale.safeToCanvasY(540);
+        this.x = UIScale.safeToCanvasX(SAFE_WIDTH - 683);
+        this.y = UIScale.safeToCanvasY(400);
 
         this.boxMc.gotoAndStop(0);
     }

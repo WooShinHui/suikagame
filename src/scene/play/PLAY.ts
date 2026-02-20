@@ -77,9 +77,16 @@ class PLAY extends SceneX {
         this.buildWarningOverlay();
         this.buildRandomMerge();
 
-        this.startNewGameSession().then(() => {
-            this._view?.startGame();
-        });
+        this.startNewGameSession()
+            .catch((err) => {
+                // ✅ 세션 실패해도 게임은 시작
+                console.error('세션 초기화 실패, 게임은 계속:', err);
+            })
+            .finally(() => {
+                // ✅ 성공/실패 모두 여기서 처리
+                this._view?.startGame();
+                (window as any).LoadingScreen?.finish();
+            });
     }
 
     public dispose(): void {

@@ -21,8 +21,14 @@ class App extends CoreApp {
 
     private async onInit() {
         this.createScene();
+
+        (window as any).LoadingScreen?.setProgress(7);
         await this.loadManifest();
+
+        (window as any).LoadingScreen?.setProgress(35);
         await this.loadResource();
+
+        (window as any).LoadingScreen?.setProgress(87);
         // await this.loadFonts();
 
         // ✅ [추가] 리소스 로드 완료 후 resize 한번 더
@@ -34,7 +40,7 @@ class App extends CoreApp {
             }
         });
 
-        this.startFirstScene();
+        await this.startFirstScene();
     }
 
     // 씬을 동적으로 생성한다.
@@ -119,14 +125,14 @@ class App extends CoreApp {
     }
 
     // 최초 씬을 렌더링 한다.
-    private startFirstScene(): void {
+    private async startFirstScene(): Promise<void> {
         if (SystemMgr.handle._scenes.length === 0) {
             console.log('생성된 Scene이 없습니다.');
             return;
         }
 
         const sceneName = SystemMgr.handle._scenes[0].name;
-        this.start(sceneName);
+        await this.start(sceneName); // ✅ await 추가
     }
 
     // App.ts
@@ -255,12 +261,11 @@ class App extends CoreApp {
         });
     }
     private showLoadShot() {
-        const loadShot = document.getElementById(
-            'loadShot'
-        ) as HTMLImageElement;
-        if (!loadShot) return;
-
-        this.updateLoadShot();
+        // const loadShot = document.getElementById(
+        //     'loadShot'
+        // ) as HTMLImageElement;
+        // if (!loadShot) return;
+        // this.updateLoadShot();
     }
 
     private hideLoadShot() {

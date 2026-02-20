@@ -162,13 +162,21 @@ export class ApiConnector {
             }
 
             // ✅ 이전 최고점 조회: bestScores/{userId} 단 1 read
-            const bestScoreDoc = await getDoc(
-                doc(bestScoresRef, effectiveUserId)
-            );
-            const previousHighScore = bestScoreDoc.exists()
-                ? (bestScoreDoc.data().score as number)
-                : 0;
-
+            let previousHighScore = 0;
+            try {
+                const bestScoreDoc = await getDoc(
+                    doc(bestScoresRef, effectiveUserId)
+                );
+                if (bestScoreDoc.exists()) {
+                    previousHighScore = bestScoreDoc.data().score as number;
+                }
+            } catch (readError) {
+                // ✅ read 실패해도 진행. 단, 신기록 판정을 보수적으로 처리
+                console.warn(
+                    '⚠️ bestScores read 실패, previousHighScore=0으로 fallback:',
+                    readError
+                );
+            }
             console.log(
                 `📊 이전 최고: ${previousHighScore}, 현재: ${finalScore}`
             );

@@ -22,7 +22,8 @@
         "parcel-bundler": "^1.12.5",
         "parcel-plugin-static-files-copy": "^2.6.0",
         "reset-css": "^5.0.2",
-        "webfontloader": "^1.6.28"
+        "webfontloader": "^1.6.28",
+        "version": "1.0.0"
     },
     "overrides": {
         "parcel-bundler": {

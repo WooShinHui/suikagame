@@ -22,7 +22,7 @@ export class ScoreLine extends ContainerX {
         }
 
         this.x = UIScale.safeToCanvasX(64);
-        this.y = UIScale.safeToCanvasY(SAFE_HEIGHT - 60); // 하단에서 100px 위
+        this.y = UIScale.safeToCanvasY(SAFE_HEIGHT - 200); // 하단에서 100px 위
     }
 
     /** 특정 캐릭터를 "획득 완료"로 표시 */

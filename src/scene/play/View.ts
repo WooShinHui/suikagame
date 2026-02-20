@@ -12,7 +12,12 @@ import { Score } from './Score';
 import { SoundMgr } from '../../manager/SoundMgr';
 import { NextCh } from './NextCh';
 import { ScoreLine } from './ScoreLine';
-import { UIScale, SAFE_WIDTH, SAFE_HEIGHT } from '../../ui/UIScale';
+import {
+    UIScale,
+    SAFE_WIDTH,
+    SAFE_HEIGHT,
+    CANVAS_ORIGINAL_WIDTH,
+} from '../../ui/UIScale';
 import { Box } from './Box';
 interface MyBody extends Matter.Body {
     typeX: number;
@@ -171,7 +176,6 @@ class View extends ContainerX {
         EVT_HUB_SAFE.on(G_EVT.PLAY.MERGE_REQUEST, this.handleMergeRequest);
 
         EVT_HUB_SAFE.on(G_EVT.PLAY.TIME_OUT, (e) => {
-            console.log('이벤트 발생임', e);
             this.handleGameOver(e.data);
         });
 
@@ -235,6 +239,9 @@ class View extends ContainerX {
 
     private buildBackgroundAndLayer(): void {
         const bg = this.resource.getLibrary('circle_2', 'mBg');
+        UIScale.update();
+        bg.x = CANVAS_ORIGINAL_WIDTH / 2 - 1422; // 2844 / 2
+        bg.y = 0;
         this.addChild(bg);
 
         this.beadCt = new ContainerX();
@@ -271,7 +278,7 @@ class View extends ContainerX {
      * 좌벽과 우벽의 좌표로  기준선이 움직일수 있는 최소 최대 범위값을 설정.
      */
     private buildWall(): void {
-        const basketWidth = SAFE_WIDTH * 0.85;
+        const basketWidth = SAFE_WIDTH * 0.92;
         const basketHeight = SAFE_HEIGHT * 0.7; // 화면 높이의 70% 정도
         const wallThickness = 40;
 
@@ -279,7 +286,7 @@ class View extends ContainerX {
         const centerX = UIScale.safeToCanvasX(SAFE_WIDTH / 2);
 
         // ✅ Safe Area 하단에서 130px 위 (원본 기준)
-        const bottomY = UIScale.safeToCanvasY(SAFE_HEIGHT - 70);
+        const bottomY = UIScale.safeToCanvasY(SAFE_HEIGHT - 210);
 
         this.move_min_x = centerX - basketWidth / 2 + wallThickness / 2;
         this.move_max_x = centerX + basketWidth / 2 - wallThickness / 2;
@@ -327,7 +334,7 @@ class View extends ContainerX {
         const centerX = UIScale.safeToCanvasX(SAFE_WIDTH / 2);
         this.base_line = new createjs.MovieClip();
         this.base_line.x = centerX;
-        this.base_line.y = UIScale.safeToCanvasY(-180); // y 오프셋은 내부에서 처리하는 게 낫습니다.
+        this.base_line.y = UIScale.safeToCanvasY(-280); // y 오프셋은 내부에서 처리하는 게 낫습니다.
 
         const shape = new createjs.Shape();
         const startY = UIScale.safeToCanvasY(400);
@@ -344,12 +351,12 @@ class View extends ContainerX {
 
         this.drop_target = this.resource.getLibrary('circle_2', 'bundle');
         this.drop_target.x = centerX;
-        this.drop_target.y = UIScale.safeToCanvasY(440);
+        this.drop_target.y = UIScale.safeToCanvasY(340);
         this.addChild(this.drop_target);
     }
 
     private buildGameOverLine(): void {
-        const safeY = 1100; // Safe Area 기준 Y 좌표
+        const safeY = 800; // Safe Area 기준 Y 좌표
 
         // ✅ Canvas 좌표로 변환해서 저장
         this.gameOverLine = UIScale.safeToCanvasY(safeY);
@@ -460,7 +467,7 @@ class View extends ContainerX {
         this.bead_order.push(rnd);
 
         // ✅ Y값 조절: 720x1280 기준 460 위치를 현재 기기 높이에 맞춰 계산
-        const spawnY = UIScale.safeToCanvasY(440);
+        const spawnY = UIScale.safeToCanvasY(340);
 
         // Matter 객체 생성 (460 대신 spawnY 사용)
         const bead = Matter.Bodies.circle($x, spawnY, size[type], {
@@ -915,7 +922,7 @@ class View extends ContainerX {
         if (availableTypes.length === 0) {
             console.warn('[DEBUG] No mergeable pairs found');
             alert(
-                'You need at least two beads  on the field. \n Stack as many as you can and test your luck!'
+                'You need at least two beads on the field. \nStack as many as you can and test your luck!'
             );
             EVT_HUB_SAFE.emit(G_EVT.PLAY.MERGE_FAIL);
             return;

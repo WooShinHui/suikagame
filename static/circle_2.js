@@ -28,7 +28,7 @@ lib.ssMetadata = [
 
 
 
-(lib.CachedBmp_1 = function() {
+(lib.CachedBmp_2 = function() {
 	this.initialize(ss["circle_2_atlas_1"]);
 	this.gotoAndStop(0);
 }).prototype = p = new cjs.Sprite();
@@ -201,6 +201,12 @@ lib.ssMetadata = [
 	this.gotoAndStop(1);
 }).prototype = p = new cjs.Sprite();
 
+
+
+(lib.bg_loading = function() {
+	this.initialize(img.bg_loading);
+}).prototype = p = new cjs.Bitmap();
+p.nominalBounds = new cjs.Rectangle(0,0,2844,1600);
 
 
 (lib.box = function() {
@@ -890,7 +896,7 @@ if (reversed == null) { reversed = false; }
 	cjs.MovieClip.apply(this,[props]);
 
 	// Layer_1
-	this.instance = new lib.CachedBmp_1();
+	this.instance = new lib.CachedBmp_2();
 
 	this.timeline.addTween(cjs.Tween.get(this.instance).wait(1));
 
@@ -1315,13 +1321,13 @@ if (reversed == null) { reversed = false; }
 	cjs.MovieClip.apply(this,[props]);
 
 	// 레이어_1
-	this.instance = new lib.bg();
+	this.instance = new lib.bg_loading();
 
 	this.timeline.addTween(cjs.Tween.get(this.instance).wait(1));
 
 	this._renderFirstFrame();
 
-}).prototype = getMCSymbolPrototype(lib.mBg, new cjs.Rectangle(0,0,900,1600), null);
+}).prototype = getMCSymbolPrototype(lib.mBg, new cjs.Rectangle(0,0,2844,1600), null);
 
 
 (lib.shine_03_aniloop_04 = function(mode,startPosition,loop,reversed) {
@@ -1930,7 +1936,7 @@ if (reversed == null) { reversed = false; }
 
 	// _인용_상자
 	this.instance_1 = new lib.mLine();
-	this.instance_1.setTransform(488.35,1511.8,0.8579,0.8577,0,0,0,341.4,32.4);
+	this.instance_1.setTransform(488.35,1313.7,0.8579,0.8577,0,0,0,341.4,32.4);
 
 	this.timeline.addTween(cjs.Tween.get(this.instance_1).wait(1));
 
@@ -1942,7 +1948,7 @@ if (reversed == null) { reversed = false; }
 
 	// box
 	this.instance_3 = new lib.mBox();
-	this.instance_3.setTransform(452.9,1061.65,0.7252,0.7252,0,0,0,462.4,470.7);
+	this.instance_3.setTransform(452.9,912.45,0.7252,0.7252,0,0,0,462.4,470.7);
 
 	this.timeline.addTween(cjs.Tween.get(this.instance_3).wait(1));
 
@@ -1955,7 +1961,7 @@ if (reversed == null) { reversed = false; }
 	this._renderFirstFrame();
 
 }).prototype = p = new lib.AnMovieClip();
-p.nominalBounds = new cjs.Rectangle(-47.2,429.1,947.2,1170.9);
+p.nominalBounds = new cjs.Rectangle(-47.2,429.1,2891.2,1170.9);
 // library properties:
 lib.properties = {
 	id: '905B69454E1DF744BCD2186E19D518E4',
@@ -1965,8 +1971,9 @@ lib.properties = {
 	color: "#FFFFFF",
 	opacity: 1.00,
 	manifest: [
-		{src:"images/circle_2_atlas_1.png?1770883527739", id:"circle_2_atlas_1"},
-		{src:"images/circle_2_atlas_2.png?1770883527739", id:"circle_2_atlas_2"}
+		{src:"images/bg_loading.png?1771570792866", id:"bg_loading"},
+		{src:"images/circle_2_atlas_1.png?1771570792832", id:"circle_2_atlas_1"},
+		{src:"images/circle_2_atlas_2.png?1771570792833", id:"circle_2_atlas_2"}
 	],
 	preloads: []
 };
