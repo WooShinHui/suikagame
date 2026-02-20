@@ -66,7 +66,6 @@ export class AuthService {
         try {
             if (!window.CrazyGames?.SDK) return null;
 
-            // ✅ 타임아웃 헬퍼
             const withTimeout = <T>(
                 promise: Promise<T>,
                 ms: number
@@ -78,8 +77,15 @@ export class AuthService {
                     ),
                 ]);
 
-            // init()도 타임아웃 적용 (CrazyGames 서버 아니면 여기서 걸림)
-            await withTimeout(window.CrazyGames.SDK.init(), 1500);
+            // ✅ init 반환값에 이미 countryCode 포함
+            const initResult = (await withTimeout(
+                window.CrazyGames.SDK.init(),
+                1500
+            )) as any;
+            const countryFromInit =
+                initResult?.systemInfo?.countryCode ||
+                initResult?.clientInfo?.country ||
+                null;
 
             const [user, systemInfo] = await Promise.all([
                 withTimeout(window.CrazyGames.SDK.user.getUser(), 1500),
@@ -94,12 +100,14 @@ export class AuthService {
                 userId: `cg_${user.username}`,
                 username: user.username,
                 countryCode:
-                    systemInfo?.countryCode || user.countryCode || 'XX',
+                    systemInfo?.countryCode ||
+                    countryFromInit ||
+                    user.countryCode ||
+                    'XX',
                 profilePicture: user.profilePictureUrl || null,
                 authType: 'crazygames',
             };
         } catch (error) {
-            // timeout이든 다른 에러든 조용히 넘어감
             console.log(
                 'ℹ️ CrazyGames SDK 사용 불가, 다음 단계로:',
                 (error as Error).message

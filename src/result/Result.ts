@@ -253,42 +253,44 @@ box-shadow: 0 3px 0 #7a4a05, inset 0 1px 0 rgba(255,255,255,0.4);
                 : '#f0c060 0%,#e8a020 50%,#c47010 100%';
 
             inner += `
-            <div style="display:flex; gap:${this.px(
-                8
-            )}px; margin-bottom:${this.px(10)}px;">
-                <div style="
-                    flex:1;
-                    background:linear-gradient(180deg,#f0c060 0%,#e8a020 50%,#c47010 100%);
-                    border-radius:${this.px(12)}px;
-                    padding:${this.px(8)}px ${this.px(6)}px;
-box-shadow: 0 3px 0 #7a4a05, inset 0 1px 0 rgba(255,255,255,0.4);
-                ">
-                    <div style="font-size:${this.px(
-                        9
-                    )}px;color:rgba(255,255,255,0.85);letter-spacing:2px;font-weight:600;">SCORE</div>
-                    <div id="score-val" style="font-size:${this.px(
-                        20
-                    )}px;font-weight:800;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,0.2);">
-                        ${currentScore.toLocaleString()}
+                <div style="display:flex; gap:${this.px(
+                    8
+                )}px; margin-bottom:${this.px(10)}px;">
+                    <!-- SCORE: 하늘색 계열 (현재 점수) -->
+                    <div style="
+                        flex:1;
+                        background:linear-gradient(180deg,#6ec6f0 0%,#3aa0d8 50%,#1a7ab0 100%);
+                        border-radius:${this.px(12)}px;
+                        padding:${this.px(8)}px ${this.px(6)}px;
+                        box-shadow: 0 3px 0 #0e4a70, inset 0 1px 0 rgba(255,255,255,0.4);
+                    ">
+                        <div style="font-size:${this.px(
+                            9
+                        )}px;color:rgba(255,255,255,0.85);letter-spacing:2px;font-weight:600;">SCORE</div>
+                        <div id="score-val" style="font-size:${this.px(
+                            20
+                        )}px;font-weight:800;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,0.2);">
+                            ${currentScore.toLocaleString()}
+                        </div>
                     </div>
-                </div>
-                <div style="
-                    flex:1;
-                    background:linear-gradient(180deg,${bestGradient});
-                    border-radius:${this.px(12)}px;
-                    padding:${this.px(8)}px ${this.px(6)}px;
-box-shadow: 0 3px 0 #7a4a05, inset 0 1px 0 rgba(255,255,255,0.4);
-                ">
-                    <div style="font-size:${this.px(
-                        9
-                    )}px;color:rgba(255,255,255,0.85);letter-spacing:2px;font-weight:600;">BEST</div>
-                    <div style="font-size:${this.px(
-                        20
-                    )}px;font-weight:800;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,0.2);">
-                        ${previousScore.toLocaleString()}
+                    <!-- BEST: 기존 나무색 유지 (또는 신기록 시 골드) -->
+                    <div style="
+                        flex:1;
+                        background:linear-gradient(180deg,${bestGradient});
+                        border-radius:${this.px(12)}px;
+                        padding:${this.px(8)}px ${this.px(6)}px;
+                        box-shadow: 0 3px 0 #7a4a05, inset 0 1px 0 rgba(255,255,255,0.4);
+                    ">
+                        <div style="font-size:${this.px(
+                            9
+                        )}px;color:rgba(255,255,255,0.85);letter-spacing:2px;font-weight:600;">BEST</div>
+                        <div style="font-size:${this.px(
+                            20
+                        )}px;font-weight:800;color:#fff;text-shadow:0 2px 0 rgba(0,0,0,0.2);">
+                            ${previousScore.toLocaleString()}
+                        </div>
                     </div>
-                </div>
-            </div>`;
+                </div>`;
         }
 
         // ── 내 순위 뱃지 ────────────────────────────
@@ -646,11 +648,28 @@ box-shadow: 0 3px 0 #7a4a05
             size = 13;
         }
         if (isMe) {
-            rowBg = 'rgba(255,200,40,0.28)';
-            color = '#8a4000';
-            weight = '700';
-            outline = `outline:2px solid #e8a020;outline-offset:-2px;`;
+            rowBg = 'rgba(255,200,40,0.35)';
+            color = '#6a3000';
+            weight = '800';
+            outline = `
+                border-left: 3px solid #e8a020;
+                border-top: 1px solid rgba(232,160,32,0.4);
+                border-bottom: 1px solid rgba(232,160,32,0.4);
+            `;
         }
+
+        const youBadge = isMe
+            ? `<span style="
+                display:inline-block;
+                background:#e8a020; color:#fff;
+                font-size:${this.px(8)}px; font-weight:800;
+                padding:1px ${this.px(4)}px;
+                border-radius:${this.px(4)}px;
+                margin-left:${this.px(4)}px;
+                vertical-align:middle;
+                letter-spacing:0.5px;
+              ">YOU</span>`
+            : '';
 
         return `
         <tr style="
@@ -665,7 +684,7 @@ box-shadow: 0 3px 0 #7a4a05
             <td style="padding:${this.px(6)}px ${this.px(
             3
         )}px;text-align:left;">
-                ${flagImg}${entry.username}
+                ${flagImg}${entry.username}${youBadge}
             </td>
             <td style="padding:${this.px(6)}px ${this.px(3)}px;text-align:right;
                        font-family:'SF Mono',Consolas,monospace;font-size:${this.px(
