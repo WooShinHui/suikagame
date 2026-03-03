@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+        "target": "ES5",
+        "lib": ["dom", "dom.iterable", "esnext"],
+        "removeComments": true,
+        "esModuleInterop": true,
+        "allowSyntheticDefaultImports": true,
+        "noUnusedLocals": true,
+        "noUnusedParameters": true,
+        "noImplicitReturns": true,
+        "noFallthroughCasesInSwitch": true,
+        "downlevelIteration": true,
+        "noUncheckedIndexedAccess": true
+    }
+}
