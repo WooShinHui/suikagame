@@ -112,6 +112,10 @@ class PLAY extends SceneX {
             this._result.dispose();
         }
 
+        if (this._option) {
+            this._option.dispose();
+        }
+
         this.removeAllChildren();
 
         this._view = null;

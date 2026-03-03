@@ -118,12 +118,18 @@ export class SoundMgr {
         BGM
     ======================================================= */
     public playBGM(src: string, volume: number): void {
+        // ✅ 이미 같은 BGM이 재생 중이면 무시
+        if (this._bgm && !this._bgm.paused && this._bgm.src.endsWith(src)) {
+            return;
+        }
+
         if (this._bgm) {
             this._bgm.pause();
+            this._bgm.src = ''; // ✅ 완전히 해제 (일부 WebView에서 src만 바꿔도 이전 음원 유지됨)
             this._bgm = null;
         }
-        this._bgm = new Audio(src);
 
+        this._bgm = new Audio(src);
         this._bgm.currentTime = 0;
         this._bgmVolume = volume;
         this._bgm.volume = volume / 100;
@@ -131,6 +137,13 @@ export class SoundMgr {
         this._bgm.muted = this._bgmMuted;
 
         this._bgm.play().catch(() => {});
+    }
+
+    public resumeBGMIfPaused(): void {
+        // ✅ 멈춰있을 때만 재개, 새로 시작 X
+        if (this._bgm && this._bgm.paused) {
+            this._bgm.play().catch(() => {});
+        }
     }
 
     public pauseBGM(): void {

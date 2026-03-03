@@ -53,6 +53,9 @@ export class Option extends PureDomX {
         SoundMgr.handle.sfxVolume = sfxVolume / 100;
         SoundMgr.handle.playBGM(bgmSrc, bgmVolume);
 
+        // ✅ Capacitor 백/포그라운드 전환 처리
+        document.addEventListener('visibilitychange', this.onVisibilityChange);
+
         EVT_HUB_SAFE.on(G_EVT.BGM.CHANGE, (src: any) => {
             const currentBgmVolume = Number(
                 localStorage.getItem('bgmVolume') || 20
@@ -62,6 +65,15 @@ export class Option extends PureDomX {
             SoundMgr.handle.playBGM(newBgmSrc, currentBgmVolume);
         });
     }
+
+    // ✅ 추가
+    private onVisibilityChange = () => {
+        if (document.hidden) {
+            SoundMgr.handle.pauseBGM();
+        } else {
+            SoundMgr.handle.resumeBGMIfPaused(); // play() 새로 호출 X
+        }
+    };
 
     public open() {
         if (this.isOpen) return;
@@ -395,6 +407,14 @@ export class Option extends PureDomX {
         });
 
         this.injectSliderStyle();
+    }
+
+    public dispose(): void {
+        document.removeEventListener(
+            'visibilitychange',
+            this.onVisibilityChange
+        );
+        this.close();
     }
 
     private changeNextBGM() {

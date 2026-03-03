@@ -583,13 +583,6 @@ class View extends ContainerX {
                         delete this.arr_compos[bodyA.label];
                         delete this.arr_compos[bodyB.label];
 
-                        // 3. 점수 계산
-                        this.totalScore += this.SCORE_TABLE[typeA] || 0;
-                        EVT_HUB_SAFE.emit(G_EVT.DATA.SCORE_UPDATED, {
-                            totalScore: this.totalScore,
-                        });
-                        this.scoreLine.activateFruit(typeA);
-
                         // 4. 다음 단계 구슬 생성 (중앙 좌표 계산)
                         let px: number, py: number;
 
@@ -621,7 +614,14 @@ class View extends ContainerX {
                             px = (bodyA.position.x + bodyB.position.x) / 2;
                             py = (bodyA.position.y + bodyB.position.y) / 2;
                         }
-
+                        // 3. 점수 계산
+                        this.totalScore += this.SCORE_TABLE[typeA] || 0;
+                        EVT_HUB_SAFE.emit(G_EVT.DATA.SCORE_UPDATED, {
+                            totalScore: this.totalScore,
+                            x: px, // ✅ 추가
+                            y: py, // ✅ 추가
+                        });
+                        this.scoreLine.activateFruit(typeA);
                         // 이펙트 및 다음 구슬 생성
                         if (0 <= typeA && typeA < 3) {
                             this.playCrashEffect(typeA, px, py, 1);
@@ -966,6 +966,8 @@ class View extends ContainerX {
         // 8️⃣ 점수 갱신 이벤트
         EVT_HUB_SAFE.emit(G_EVT.DATA.SCORE_UPDATED, {
             totalScore: this.totalScore,
+            x: avgX, // ✅ 추가
+            y: avgY, // ✅ 추가
         });
 
         // 9️⃣ 합체 플래그 (게임오버 라인 로직용)
@@ -1025,70 +1027,70 @@ class View extends ContainerX {
         // this.addNextPhase(typeA, px, py); ❌ 여기서 생성하지 않습니다.
     }
 
-    // public debugSpawnMaxPhase(): void {
-    //     const targetType = 9; // 최종적으로 생성할 구슬의 Type
+    public debugSpawnMaxPhase(): void {
+        const targetType = 9; // 최종적으로 생성할 구슬의 Type
 
-    //     // Type 11은 addNextPhase를 통해 생성되는 Type이므로,
-    //     // Type 10이 합체되어 Type 11이 되었다고 가정하고 생성 로직을 재활용합니다.
-    //     const creationType = 10; // addNextPhase에 전달할 인수는 10 (10 + 1 = 11)
+        // Type 11은 addNextPhase를 통해 생성되는 Type이므로,
+        // Type 10이 합체되어 Type 11이 되었다고 가정하고 생성 로직을 재활용합니다.
+        const creationType = 10; // addNextPhase에 전달할 인수는 10 (10 + 1 = 11)
 
-    //     // 1. 구슬을 생성할 필드의 중앙 좌표 계산 (예시 값)
-    //     // 실제 게임 환경에 맞춰 적절히 수정이 필요합니다.
-    //     const fieldCenterX = 600; // 예: 필드 가로 중심
-    //     const fieldCenterY = 500; // 예: 필드 상단 근처 (떨어지도록)
+        // 1. 구슬을 생성할 필드의 중앙 좌표 계산 (예시 값)
+        // 실제 게임 환경에 맞춰 적절히 수정이 필요합니다.
+        const fieldCenterX = 600; // 예: 필드 가로 중심
+        const fieldCenterY = 500; // 예: 필드 상단 근처 (떨어지도록)
 
-    //     console.warn(
-    //         `[DEBUG] 강제 Type ${targetType} 구슬 생성 시도: (${fieldCenterX}, ${fieldCenterY})`
-    //     );
+        console.warn(
+            `[DEBUG] 강제 Type ${targetType} 구슬 생성 시도: (${fieldCenterX}, ${fieldCenterY})`
+        );
 
-    //     // 2. Type 11 생성 로직 (addNextPhase의 내용 재구성)
-    //     // Type 11은 최종 단계이므로, Type 10의 합체 결과로 생성되는 과정을 모방합니다.
+        // 2. Type 11 생성 로직 (addNextPhase의 내용 재구성)
+        // Type 11은 최종 단계이므로, Type 10의 합체 결과로 생성되는 과정을 모방합니다.
 
-    //     // (addNextPhase의 if 문과 달리, 여기서는 강제로 생성합니다.)
-    //     const circle = Matter.Bodies.circle(
-    //         fieldCenterX,
-    //         fieldCenterY,
-    //         size[targetType],
-    //         {
-    //             label: `Bead_${this.cnt}`,
-    //             // Type 11에 맞는 속성을 Matter.js 객체에 설정
-    //         }
-    //     ) as unknown as MyBody;
+        // (addNextPhase의 if 문과 달리, 여기서는 강제로 생성합니다.)
+        const circle = Matter.Bodies.circle(
+            fieldCenterX,
+            fieldCenterY,
+            size[targetType],
+            {
+                label: `Bead_${this.cnt}`,
+                // Type 11에 맞는 속성을 Matter.js 객체에 설정
+            }
+        ) as unknown as MyBody;
 
-    //     // 최종 Type을 11로 설정
-    //     circle.typeX = targetType;
+        // 최종 Type을 11로 설정
+        circle.typeX = targetType;
 
-    //     // 튕기는 속도 설정 (약간의 움직임 부여)
-    //     const velocityX = (Math.random() - 0.5) * 2;
-    //     const velocityY = -Math.random() * 2; // 위로 튕기기
+        // 튕기는 속도 설정 (약간의 움직임 부여)
+        const velocityX = (Math.random() - 0.5) * 2;
+        const velocityY = -Math.random() * 2; // 위로 튕기기
 
-    //     Matter.Body.setVelocity(circle, {
-    //         x: velocityX,
-    //         y: velocityY,
-    //     });
+        Matter.Body.setVelocity(circle, {
+            x: velocityX,
+            y: velocityY,
+        });
 
-    //     this.cnt++;
-    //     Matter.World.add(this.engine.world, [circle]);
+        this.cnt++;
+        Matter.World.add(this.engine.world, [circle]);
 
-    //     // 3. 화면 MovieClip 생성 및 배치
-    //     const mc = this.resource.getLibrary(
-    //         'circle_2',
-    //         `bead_${circle.typeX}` // bead_11 리소스를 사용
-    //     );
-    //     mc.x = circle.position.x;
-    //     mc.y = circle.position.y;
+        // 3. 화면 MovieClip 생성 및 배치
+        const mc = this.resource.getLibrary(
+            'circle_2',
+            `bead_${circle.typeX}` // bead_11 리소스를 사용
+        );
+        mc.x = circle.position.x;
+        mc.y = circle.position.y;
 
-    //     this.beadCt.addChild(mc);
-    //     this.setFace(mc, 4, 2000);
+        this.beadCt.addChild(mc);
+        this.setFace(mc, 4, 2000);
 
-    //     // 4. 동기화 목록에 추가
-    //     this.arr_compos[circle.label] = {};
-    //     this.arr_compos[circle.label].body = circle;
-    //     this.arr_compos[circle.label].mc = mc;
+        // 4. 동기화 목록에 추가
+        this.arr_compos[circle.label] = {};
+        this.arr_compos[circle.label].body = circle;
+        this.arr_compos[circle.label].mc = mc;
 
-    //     // 5. 게임 오버 라인 체크 (선택 사항)
-    //     this.checkGameOverLine();
-    // }
+        // 5. 게임 오버 라인 체크 (선택 사항)
+        this.checkGameOverLine();
+    }
 
     public get getCanMerged() {
         return this.canMerged;
