@@ -33,6 +33,7 @@ export class Option extends PureDomX {
     private sparkleInterval: number | null = null;
 
     constructor(private score: Score) {
+        (window as any)._log?.('Option constructor called');
         super(document.createElement('div'));
 
         const savedBGM = localStorage.getItem('bgmVolume');
@@ -54,7 +55,16 @@ export class Option extends PureDomX {
         SoundMgr.handle.playBGM(bgmSrc, bgmVolume);
 
         // ✅ Capacitor 백/포그라운드 전환 처리
-        document.addEventListener('visibilitychange', this.onVisibilityChange);
+        if (!(window as any).__bgmVisibilityBound) {
+            (window as any).__bgmVisibilityBound = true;
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    SoundMgr.handle.pauseBGM();
+                } else {
+                    SoundMgr.handle.resumeBGMIfPaused();
+                }
+            });
+        }
 
         EVT_HUB_SAFE.on(G_EVT.BGM.CHANGE, (src: any) => {
             const currentBgmVolume = Number(
@@ -62,7 +72,7 @@ export class Option extends PureDomX {
             );
             const newBgmSrc = `${src.data}`;
             localStorage.setItem('bgm', newBgmSrc);
-            SoundMgr.handle.playBGM(newBgmSrc, currentBgmVolume);
+            SoundMgr.handle.changeBGM(newBgmSrc, currentBgmVolume); // ✅ changeBGM으로
         });
     }
 
@@ -279,6 +289,19 @@ export class Option extends PureDomX {
         this.btnBgm.addEventListener('pointerleave', () => {
             this.btnBgm.style.backgroundImage =
                 'url("./assets/images/bt_bgm_s.png")';
+        });
+
+        this.closeBtn.addEventListener('pointerdown', () => {
+            this.closeBtn.style.backgroundImage =
+                'url("./assets/images/exit_press.png")';
+        });
+        this.closeBtn.addEventListener('pointerup', () => {
+            this.closeBtn.style.backgroundImage =
+                'url("./assets/images/exit.png")';
+        });
+        this.closeBtn.addEventListener('pointerleave', () => {
+            this.closeBtn.style.backgroundImage =
+                'url("./assets/images/exit.png")';
         });
 
         this.titleElement = document.createElement('div');

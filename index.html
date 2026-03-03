@@ -24,7 +24,47 @@
             name="apple-mobile-web-app-status-bar-style"
             content="black-translucent"
         />
+        <div
+            id="debug-log"
+            style="
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                background: rgba(0, 0, 0, 0.75);
+                color: #0f0;
+                font-size: 11px;
+                font-family: monospace;
+                padding: 4px;
+                z-index: 99999;
+                max-height: 40vh;
+                overflow-y: auto;
+                pointer-events: none;
+            "
+        ></div>
 
+        <script>
+            const _log = (msg) => {
+                const el = document.getElementById('debug-log');
+                if (!el) return;
+                const line = document.createElement('div');
+                line.textContent = `${new Date()
+                    .toISOString()
+                    .slice(11, 23)} ${msg}`;
+                el.insertBefore(line, el.firstChild);
+                if (el.children.length > 30) el.lastChild.remove();
+            };
+            window._log = _log;
+
+            // ✅ 핵심 이벤트 감지
+            document.addEventListener('visibilitychange', () => {
+                _log(`visibility: ${document.hidden ? 'hidden' : 'visible'}`);
+            });
+            window.addEventListener('focus', () => _log('window: focus'));
+            window.addEventListener('blur', () => _log('window: blur'));
+            window.addEventListener('pageshow', () => _log('pageshow'));
+            window.addEventListener('pagehide', () => _log('pagehide'));
+        </script>
         <style>
             html,
             body {

@@ -10,7 +10,7 @@ export class SoundMgr {
 
     private _sfxVolume: number = 0.5;
     private _bgmVolume: number = 0.2;
-
+    private _bgmInitialized: boolean = false;
     private _bgm: HTMLAudioElement | null = null;
     private _narration: HTMLAudioElement | null = null;
 
@@ -118,29 +118,44 @@ export class SoundMgr {
         BGM
     ======================================================= */
     public playBGM(src: string, volume: number): void {
-        // ✅ 이미 같은 BGM이 재생 중이면 무시
-        if (this._bgm && !this._bgm.paused && this._bgm.src.endsWith(src)) {
+        // ✅ paused 상태 무관하게 파일명만 비교
+        const newFilename = src.split('/').pop() ?? src;
+        const currentFilename = this._bgm?.src?.split('/').pop() ?? '';
+
+        if (this._bgm && currentFilename === newFilename) {
+            // 같은 곡 - 볼륨만 조정, 재시작 절대 안 함
+            this._bgm.volume = this._bgmMuted ? 0 : volume / 100;
+            if (this._bgm.paused) {
+                this._bgm.play().catch(() => {});
+            }
+            (window as any)._log?.(`playBGM SKIPPED (same): ${newFilename}`);
             return;
         }
 
+        (window as any)._log?.(`playBGM START: ${newFilename}`);
+
         if (this._bgm) {
             this._bgm.pause();
-            this._bgm.src = ''; // ✅ 완전히 해제 (일부 WebView에서 src만 바꿔도 이전 음원 유지됨)
+            this._bgm.src = '';
             this._bgm = null;
         }
 
         this._bgm = new Audio(src);
-        this._bgm.currentTime = 0;
-        this._bgmVolume = volume;
-        this._bgm.volume = volume / 100;
+        this._bgm.volume = this._bgmMuted ? 0 : volume / 100;
         this._bgm.loop = true;
         this._bgm.muted = this._bgmMuted;
+        this._bgm.play().catch((e) => {
+            (window as any)._log?.(`playBGM FAILED: ${e.message}`);
+        });
+    }
 
-        this._bgm.play().catch(() => {});
+    // BGM 곡 변경 시에만 사용 (강제 재시작)
+    public changeBGM(src: string, volume: number): void {
+        this._bgmInitialized = false; // 플래그 리셋 후 재시작
+        this.playBGM(src, volume);
     }
 
     public resumeBGMIfPaused(): void {
-        // ✅ 멈춰있을 때만 재개, 새로 시작 X
         if (this._bgm && this._bgm.paused) {
             this._bgm.play().catch(() => {});
         }
