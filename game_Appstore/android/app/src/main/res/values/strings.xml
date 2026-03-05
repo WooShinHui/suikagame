@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">milkTFriendsPop</string>
+    <string name="title_activity_main">milkTFriendsPop</string>
+    <string name="package_name">com.company.milkTFriendsPop</string>
+    <string name="custom_url_scheme">com.company.milkTFriendsPop</string>
+</resources>

@@ -6,6 +6,7 @@ import { AppConfig } from './core/CoreApp';
 import PLAY from './scene/play/PLAY';
 import { UIScale } from './ui/UIScale';
 import { API_CONNECTOR } from './fetch/ApiConnector';
+import { AdMobService } from './ads/AdmobService';
 
 let canvas: HTMLCanvasElement;
 
@@ -19,6 +20,7 @@ function applyResize() {
 }
 
 window.onload = async () => {
+    AdMobService.init();
     canvas = document.getElementById('create_cvs') as HTMLCanvasElement;
     applyResize();
 

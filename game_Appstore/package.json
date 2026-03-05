@@ -13,6 +13,7 @@
         "removeSlash": "powershell.exe -ExecutionPolicy Bypass -File \"replace-slash.ps1\" \"./dist/index.html\" \"./dist/index.html\""
     },
     "dependencies": {
+        "@capacitor-community/admob": "^8.0.0",
         "@firebase/firestore": "^4.11.0",
         "@types/createjs": "^0.0.32",
         "@types/matter-js": "^0.19.8",

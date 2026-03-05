@@ -2,7 +2,6 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
-        <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
         <script src="https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js"></script>
         <script>
             WebFont.load({
@@ -113,12 +112,28 @@
                 flex-direction: column;
                 align-items: center;
                 justify-content: flex-end;
-                padding-bottom: 13%;
-                opacity: 0; /* ✅ 처음엔 투명 */
+                padding-bottom: 13%; /* 세로 기본값 */
+                opacity: 0;
                 transition: opacity 0.3s ease;
                 background-repeat: no-repeat;
             }
+            @media (orientation: landscape) {
+                #loading-screen {
+                    padding-bottom: 5%;
+                }
 
+                .progress-wrap {
+                    width: clamp(
+                        160px,
+                        40vw,
+                        280px
+                    ); /* 가로에서 바 너무 크지 않게 */
+                }
+
+                .logo-wrap {
+                    width: clamp(120px, 30vw, 220px); /* 로고도 비례 축소 */
+                }
+            }
             .progress-wrap {
                 width: clamp(200px, 58vw, 320px);
                 display: flex;
