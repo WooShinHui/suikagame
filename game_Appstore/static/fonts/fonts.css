@@ -1,0 +1,98 @@
+@font-face {
+    font-family: 'HUGoth370';
+    font-style: normal;
+    src: url('HUGoth370.woff2') format('woff2');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'NotoSansKR-Regular';
+    font-style: normal;
+    src: url('NotoSansKR-Regular.woff2') format('woff2');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'NotoSansKR-Medium';
+    font-style: normal;
+    src: url('NotoSansKR-Medium.woff2') format('woff2');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Noto Sans KR SemiBold';
+    font-style: normal;
+    src: url('NotoSansKR-SemiBold.woff2') format('woff2');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'NanumBarunGothic';
+    font-style: normal;
+    src: url('NanumBarunGothic.woff2') format('woff2');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'NanumBarunGothicBold';
+    font-style: bold;
+    src: url('NanumBarunGothicBold.woff2') format('woff2');
+    font-display: swap;
+}
+@font-face {
+    font-family: 'BagelFatOne';
+    src: url('/static/fonts/BagelFatOne-Regular.woff2') format('woff2');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+@font-face {
+    font-family: 'Galmuri11';
+    src: url('./Galmuri11.woff2') format('woff2'),
+        url('./Galmuri11.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'PressStart2P-Regular';
+    src: url('/fonts/PressStart2P-Regular.ttf') format('truetype');
+    font-weight: lighter;
+    font-style: normal;
+    font-display: block;
+}
+/*
+@font-face {
+    font-family: 'HUGoth350';
+    font-style: normal;
+    font-weight: bold;
+    src: url('HU고딕350.ttf') format('opentype');
+}
+
+@font-face {
+    font-family: 'HUGoth370';
+    font-style: normal;
+    font-weight: bold;
+    src: url('HU고딕370.ttf') format('opentype');
+}
+
+@font-face {
+    font-family: 'HUGoth360';
+    font-style: normal;
+    font-weight: bold;
+    src: url('HU고딕360.ttf') format('opentype');
+}
+
+ @font-face {
+    font-family: 'HUNemogulim170';
+    font-style: normal;
+    font-weight: bold;
+    src: url('HU네모굴림170.ttf') format('opentype');
+}
+
+@font-face {
+    font-family: 'HUSun160';
+    font-style: normal;
+    font-weight: bold;
+    src: url('HU햇살160.ttf') format('opentype');
+} */
