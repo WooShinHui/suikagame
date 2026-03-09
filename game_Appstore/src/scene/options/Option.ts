@@ -44,7 +44,7 @@ export class Option extends PureDomX {
 
         const bgmVolume = savedBGM !== null ? Number(savedBGM) : 20;
         const sfxVolume = savedSFX !== null ? Number(savedSFX) : 50;
-        const bgmSrc = savedBgmSrc || 'assets/sounds/RETRO.mp3';
+        const bgmSrc = savedBgmSrc || './assets/sounds/RETRO.mp3';
 
         if (savedBgmIndex) {
             this.currentBgmIndex = Number(savedBgmIndex);

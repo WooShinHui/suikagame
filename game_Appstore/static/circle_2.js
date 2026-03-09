@@ -28,7 +28,7 @@ lib.ssMetadata = [
 
 
 
-(lib.CachedBmp_2 = function() {
+(lib.CachedBmp_1 = function() {
 	this.initialize(ss["circle_2_atlas_1"]);
 	this.gotoAndStop(0);
 }).prototype = p = new cjs.Sprite();
@@ -896,7 +896,7 @@ if (reversed == null) { reversed = false; }
 	cjs.MovieClip.apply(this,[props]);
 
 	// Layer_1
-	this.instance = new lib.CachedBmp_2();
+	this.instance = new lib.CachedBmp_1();
 
 	this.timeline.addTween(cjs.Tween.get(this.instance).wait(1));
 
@@ -1460,13 +1460,13 @@ if (reversed == null) { reversed = false; }
 	this.n1.setTransform(98.25,33.75,0.8257,0.8236,0,0,0,28.4,29.2);
 
 	this.instance_1 = new lib.Rectangle();
-	this.instance_1.setTransform(231.75,24.75,0.6404,0.7326,0,0,0,342.1,31.6);
+	this.instance_1.setTransform(219.05,23.15,0.6404,0.7326,0,0,0,342.1,31.6);
 
 	this.timeline.addTween(cjs.Tween.get({}).to({state:[{t:this.instance_1},{t:this.n1},{t:this.n2},{t:this.n3},{t:this.n4},{t:this.n5},{t:this.n6},{t:this.n7},{t:this.n8},{t:this.n9},{t:this.n10},{t:this.shape},{t:this.instance}]}).wait(1));
 
 	this._renderFirstFrame();
 
-}).prototype = getMCSymbolPrototype(lib.mLine, new cjs.Rectangle(-15.5,-7.2,616.1,85), null);
+}).prototype = getMCSymbolPrototype(lib.mLine, new cjs.Rectangle(-28.2,-8.8,616.1,85), null);
 
 
 (lib.mScore = function(mode,startPosition,loop,reversed) {
@@ -1936,7 +1936,7 @@ if (reversed == null) { reversed = false; }
 
 	// _인용_상자
 	this.instance_1 = new lib.mLine();
-	this.instance_1.setTransform(488.35,1313.7,0.8579,0.8577,0,0,0,341.4,32.4);
+	this.instance_1.setTransform(446.3,1313.75,0.8579,0.8577,0,0,0,292.4,32.5);
 
 	this.timeline.addTween(cjs.Tween.get(this.instance_1).wait(1));
 
@@ -1948,7 +1948,7 @@ if (reversed == null) { reversed = false; }
 
 	// box
 	this.instance_3 = new lib.mBox();
-	this.instance_3.setTransform(452.9,912.45,0.7252,0.7252,0,0,0,462.4,470.7);
+	this.instance_3.setTransform(451.35,827.5,0.9761,0.9761,0,0,0,462.4,470.8);
 
 	this.timeline.addTween(cjs.Tween.get(this.instance_3).wait(1));
 
@@ -1971,9 +1971,9 @@ lib.properties = {
 	color: "#FFFFFF",
 	opacity: 1.00,
 	manifest: [
-		{src:"images/bg_loading.png?1771570792866", id:"bg_loading"},
-		{src:"images/circle_2_atlas_1.png?1771570792832", id:"circle_2_atlas_1"},
-		{src:"images/circle_2_atlas_2.png?1771570792833", id:"circle_2_atlas_2"}
+		{src:"images/bg_loading.png?1773016090200", id:"bg_loading"},
+		{src:"images/circle_2_atlas_1.png?1773016090166", id:"circle_2_atlas_1"},
+		{src:"images/circle_2_atlas_2.png?1773016090166", id:"circle_2_atlas_2"}
 	],
 	preloads: []
 };

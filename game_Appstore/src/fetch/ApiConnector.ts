@@ -69,67 +69,6 @@ export class ApiConnector {
     }
 
     // ─────────────────────────────────────────────
-    // 유저 세션 초기화
-    // ─────────────────────────────────────────────
-
-    public async setCrazyGamesUser(userInfo: {
-        userId: string;
-        username: string;
-        countryCode: string;
-        profilePicture: string | null;
-    }) {
-        console.log('🔹 setCrazyGamesUser 호출:', userInfo);
-
-        if (!userInfo.userId || userInfo.userId === 'undefined') {
-            console.error('❌ userId가 없습니다!', userInfo);
-            throw new Error('Invalid userId: ' + userInfo.userId);
-        }
-
-        this.currentId = userInfo.userId;
-        this.currentUsername = userInfo.username || 'Guest';
-        this.currentCountryCode = userInfo.countryCode || 'XX';
-
-        await this.initFirebaseSession(userInfo);
-    }
-
-    private async initFirebaseSession(userInfo: {
-        userId: string;
-        username: string;
-        countryCode: string;
-    }) {
-        try {
-            if (!userInfo.userId) throw new Error('userId is required');
-
-            this.currentSessionId = `${userInfo.userId}_${Date.now()}`;
-            this.sessionSecret = CryptoJS.SHA256(
-                `${this.currentSessionId}_${Date.now()}_${Math.random()}`
-            ).toString();
-
-            await setDoc(doc(sessionsRef, this.currentSessionId), {
-                userId: userInfo.userId,
-                username: userInfo.username || 'Guest',
-                countryCode: userInfo.countryCode || 'XX',
-                sessionSecret: this.sessionSecret,
-                createdAt: serverTimestamp(),
-                itemCount: 1,
-            });
-
-            console.log('✅ Firebase 세션 생성 완료:', this.currentSessionId);
-
-            EVT_HUB_SAFE.emit(G_EVT.PLAY.SESSION_STARTED, {
-                gameSessionId: this.currentSessionId,
-                userId: userInfo.userId,
-                username: userInfo.username || 'Guest',
-                countryCode: userInfo.countryCode || 'XX',
-                itemCount: 1,
-                isServerVerified: true,
-            });
-        } catch (error) {
-            console.error('❌ Firebase 세션 생성 실패:', error);
-        }
-    }
-
-    // ─────────────────────────────────────────────
     // 점수 저장 (핵심 개선)
     //
     // 변경 전: getTopRankings(500) → 500 reads
@@ -142,80 +81,17 @@ export class ApiConnector {
         username: string | null,
         gameSessionId?: string
     ) {
-        console.log('📤 sendFinalScore 호출');
-
         try {
             const effectiveUserId = userId || this.currentId || 'guest';
-            const sId = gameSessionId || this.currentSessionId;
+            if (!effectiveUserId || effectiveUserId === 'guest') return;
 
-            if (!sId) {
-                console.error('❌ 세션 ID 없음!');
-                alert('세션이 초기화되지 않았습니다. 페이지를 새로고침하세요.');
-                return;
-            }
-
-            const sessionDoc = await getDoc(doc(sessionsRef, sId));
-            if (!sessionDoc.exists()) {
-                console.error('❌ 유효하지 않은 세션:', sId);
-                alert('세션이 만료되었습니다. 페이지를 새로고침하세요.');
-                return;
-            }
-
-            // ✅ 이전 최고점 조회: bestScores/{userId} 단 1 read
-            let previousHighScore = 0;
-            try {
-                const bestScoreDoc = await getDoc(
-                    doc(bestScoresRef, effectiveUserId)
-                );
-                if (bestScoreDoc.exists()) {
-                    previousHighScore = bestScoreDoc.data().score as number;
-                }
-            } catch (readError) {
-                // ✅ read 실패해도 진행. 단, 신기록 판정을 보수적으로 처리
-                console.warn(
-                    '⚠️ bestScores read 실패, previousHighScore=0으로 fallback:',
-                    readError
-                );
-            }
-            console.log(
-                `📊 이전 최고: ${previousHighScore}, 현재: ${finalScore}`
-            );
-
+            // ✅ localStorage 캐시에서 즉시 읽기 (네트워크 없음)
+            const cacheKey = `best_score_${effectiveUserId}`;
+            const cachedBest = localStorage.getItem(cacheKey);
+            const previousHighScore = cachedBest ? Number(cachedBest) : 0;
             const isNewRecord = finalScore > previousHighScore;
 
-            if (isNewRecord) {
-                const scoreId = `${effectiveUserId}_${Date.now()}`;
-
-                // ✅ 두 컬렉션에 병렬 write (read보다 훨씬 저렴)
-                await Promise.all([
-                    // 1) 원본 로그 (기존 유지)
-                    setDoc(doc(scoresRef, scoreId), {
-                        userId: effectiveUserId,
-                        username: username || this.currentUsername || 'Guest',
-                        countryCode: this.currentCountryCode || 'XX',
-                        score: finalScore,
-                        sessionId: sId,
-                        timestamp: serverTimestamp(),
-                    }),
-                    // 2) ✅ 유저당 1개 최고점 문서 (새 컬렉션)
-                    setDoc(doc(bestScoresRef, effectiveUserId), {
-                        userId: effectiveUserId,
-                        username: username || this.currentUsername || 'Guest',
-                        countryCode: this.currentCountryCode || 'XX',
-                        score: finalScore,
-                        updatedAt: serverTimestamp(),
-                    }),
-                ]);
-
-                console.log(
-                    `🏆 신기록! ${finalScore} (이전: ${previousHighScore})`
-                );
-            } else {
-                console.log(
-                    `📉 ${finalScore} < 최고점 ${previousHighScore}, 저장 안 함`
-                );
-            }
-
+            // ✅ SHOW_RESULT 즉시 emit (네트워크 기다리지 않음)
             EVT_HUB_SAFE.emit(G_EVT.PLAY.SHOW_RESULT, {
                 mode: 'GAME_OVER',
                 userId: effectiveUserId,
@@ -223,9 +99,63 @@ export class ApiConnector {
                 previousHighScore: Math.max(finalScore, previousHighScore),
                 isNewRecord,
             });
+
+            // ✅ Firebase write + 캐시 업데이트는 백그라운드로
+            if (isNewRecord) {
+                localStorage.setItem(cacheKey, String(finalScore));
+                const scoreId = `${effectiveUserId}_${Date.now()}`;
+
+                Promise.resolve().then(async () => {
+                    try {
+                        // ✅ 실제 Firebase 값과 한번 더 비교
+                        const realDoc = await getDoc(
+                            doc(bestScoresRef, effectiveUserId)
+                        );
+                        const realBest = realDoc.exists()
+                            ? (realDoc.data().score as number)
+                            : 0;
+
+                        // ✅ 캐시 항상 최신으로 갱신
+                        localStorage.setItem(
+                            cacheKey,
+                            String(Math.max(finalScore, realBest))
+                        );
+
+                        if (finalScore > realBest) {
+                            // 실제로 신기록일 때만 write
+                            await Promise.all([
+                                setDoc(doc(scoresRef, scoreId), {
+                                    userId: effectiveUserId,
+                                    username:
+                                        username ||
+                                        this.currentUsername ||
+                                        'Guest',
+                                    countryCode:
+                                        this.currentCountryCode || 'XX',
+                                    score: finalScore,
+                                    sessionId: this.currentSessionId,
+                                    timestamp: serverTimestamp(),
+                                }),
+                                setDoc(doc(bestScoresRef, effectiveUserId), {
+                                    userId: effectiveUserId,
+                                    username:
+                                        username ||
+                                        this.currentUsername ||
+                                        'Guest',
+                                    countryCode:
+                                        this.currentCountryCode || 'XX',
+                                    score: finalScore,
+                                    updatedAt: serverTimestamp(),
+                                }),
+                            ]);
+                        }
+                    } catch (e) {
+                        console.error('백그라운드 점수 저장 실패:', e);
+                    }
+                });
+            }
         } catch (error: any) {
             console.error('❌ Firebase 점수 저장 실패:', error);
-            alert(`점수 저장 실패: ${error.message}`);
         }
     }
 
@@ -508,6 +438,46 @@ export class ApiConnector {
             console.error('[Firebase] 점수 초기화 실패:', error);
             return false;
         }
+    }
+    public async setUser(userInfo: {
+        userId: string;
+        username: string;
+        countryCode: string;
+        profilePicture: string | null;
+    }): Promise<void> {
+        if (!userInfo.userId || userInfo.userId === 'undefined') {
+            console.error('❌ userId가 없습니다!', userInfo);
+            return;
+        }
+
+        this.currentId = userInfo.userId;
+        this.currentUsername = userInfo.username || 'Guest';
+        this.currentCountryCode = userInfo.countryCode || 'XX';
+
+        // ✅ 세션 ID는 간단하게 설정 (Firebase write 없음)
+        this.currentSessionId = `${userInfo.userId}_${Date.now()}`;
+
+        EVT_HUB_SAFE.emit(G_EVT.PLAY.SESSION_STARTED, {
+            gameSessionId: this.currentSessionId,
+            userId: userInfo.userId,
+            username: userInfo.username || 'Guest',
+            countryCode: userInfo.countryCode || 'XX',
+            itemCount: 1,
+            isServerVerified: true,
+        });
+
+        console.log('✅ ApiConnector 유저 설정 완료:', userInfo.userId);
+        this.syncBestScoreCache(userInfo.userId);
+    }
+
+    private async syncBestScoreCache(userId: string): Promise<void> {
+        try {
+            const cacheKey = `best_score_${userId}`;
+            const snap = await getDoc(doc(bestScoresRef, userId));
+            if (snap.exists()) {
+                localStorage.setItem(cacheKey, String(snap.data().score));
+            }
+        } catch {}
     }
 
     // ─────────────────────────────────────────────

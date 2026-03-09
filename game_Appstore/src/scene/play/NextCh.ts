@@ -36,7 +36,7 @@ export class NextCh extends ContainerX {
 
         // 2. 캔버스 내 기준 좌표
         const canvasX = CANVAS_ORIGINAL_WIDTH;
-        const canvasY = 260;
+        const canvasY = 180;
 
         // 3. 요소의 현재 시각적 너비 (스케일 반영)
         // 원본 크기가 200이라 가정할 때

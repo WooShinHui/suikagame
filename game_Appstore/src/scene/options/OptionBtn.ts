@@ -94,7 +94,7 @@ export class OptionBtn extends PureDomX {
         // Canvas 논리 좌표
         const canvasX = 20;
         const canvasY = 20;
-        const buttonSize = 100 * scale;
+        const buttonSize = 80 * scale;
 
         // Canvas 좌표 → 화면 좌표
         let screenX = canvasLeft + canvasX * scale;

@@ -35,12 +35,4 @@ window.onload = async () => {
     };
 
     new App(config);
-
-    // ✅ SDK 로딩 알림만 여기서 처리
-    // 인증/세션은 PLAY.startNewGameSession()에서 AUTH_SERVICE가 담당
-    setTimeout(() => {
-        if (window.CrazyGames?.SDK?.game) {
-            window.CrazyGames.SDK.game.gameplayStart();
-        }
-    }, 2000);
 };

@@ -29,12 +29,15 @@ interface Compos {
 }
 
 // 생성되어야 하는 bead의 순차적 반지름
-const size = [15, 30, 46, 56, 66, 80, 90, 106, 116, 136, 160];
+const BEAD_SIZE_MULTIPLIER = 1.2;
+const size = [15, 30, 46, 56, 66, 80, 90, 106, 116, 136, 160].map(
+    (v) => v * BEAD_SIZE_MULTIPLIER
+);
 
 class View extends ContainerX {
     // Matter.js 엔진 객체
     private engine: Matter.Engine;
-
+    private beadNaturalRadii: Record<number, number> = {};
     // 생성된 bead의 숫자를 기록하는 변수
     private cnt: number = 0;
 
@@ -50,7 +53,7 @@ class View extends ContainerX {
 
     // 터치 가능 여부
     private bClick: boolean;
-
+    private dropTargetY: number = 0;
     // 기준선이 움직일수 있는 최소 최대 범위값
     private move_min_x: number;
     private move_max_x: number;
@@ -133,8 +136,6 @@ class View extends ContainerX {
 
     private scoreLine: ScoreLine;
 
-    private soundCache: Record<string, HTMLAudioElement> = {};
-
     private isWarningActive = false;
 
     private render?: Matter.Render;
@@ -145,11 +146,6 @@ class View extends ContainerX {
         (window as any).currentGameView = this;
         this.bActive = false;
         this.arr_compos = {};
-        this.SOUND_TABLE.forEach((name) => {
-            const audio = new Audio(`/assets/sounds/${name}.mp3`);
-            audio.preload = 'auto';
-            this.soundCache[name] = audio;
-        });
 
         this.buildBackgroundAndLayer();
 
@@ -168,7 +164,7 @@ class View extends ContainerX {
         this.nextCh = new NextCh();
         this.addChild(this.nextCh);
 
-        this.scoreLine = new ScoreLine();
+        this.scoreLine = new ScoreLine(this.box);
         this.addChild(this.scoreLine);
 
         EVT_HUB_SAFE.on(G_EVT.DATA.DATA_SEND, this.handleLoginSuccess);
@@ -216,12 +212,19 @@ class View extends ContainerX {
         this.bActive = true;
 
         if (this.drop_target && this.bead_order.length > 1) {
-            // ✅ Safe Area 중앙
-            const centerX = UIScale.safeToCanvasX(SAFE_WIDTH / 2);
-            this.drop_target.x = centerX;
-            this.base_line.x = centerX;
+            this.applyBaseLineLayout();
             this.drop_target.gotoAndStop(this.bead_order[0]);
             this.nextCh.showNext(this.bead_order[1]);
+
+            // ✅ boxScale 대신 getBeadMcScale 사용
+            const type = this.bead_order[0];
+            const boxScale = this.box.physicsScale;
+            const scaledRadius = size[type] * boxScale;
+            const mcScale = this.getBeadMcScale(type, scaledRadius);
+            this.drop_target.scaleX = mcScale;
+            this.drop_target.scaleY = mcScale;
+
+            this.base_line.x = this.drop_target.x;
         }
     }
 
@@ -278,23 +281,23 @@ class View extends ContainerX {
      * 좌벽과 우벽의 좌표로  기준선이 움직일수 있는 최소 최대 범위값을 설정.
      */
     private buildWall(): void {
-        const basketWidth = SAFE_WIDTH * 0.92;
-        const basketHeight = SAFE_HEIGHT * 0.7; // 화면 높이의 70% 정도
+        const { centerX, bottomY, basketWidth } = this.box.getPhysicsParams();
+
+        const basketHeight = SAFE_HEIGHT * 0.9;
         const wallThickness = 40;
 
-        // ✅ 중앙 하단 기준 (세로 위치 수정)
-        const centerX = UIScale.safeToCanvasX(SAFE_WIDTH / 2);
+        const BOTTOM_OFFSET = -8;
+        const SIDE_OFFSET = -8; // ✅ 좌우 벽을 안쪽으로 이동
+        const adjustedBottomY = bottomY - BOTTOM_OFFSET;
+        const adjustedWidth = basketWidth - SIDE_OFFSET * 2; // ✅ 좌우 각각 안으로
 
-        // ✅ Safe Area 하단에서 130px 위 (원본 기준)
-        const bottomY = UIScale.safeToCanvasY(SAFE_HEIGHT - 210);
-
-        this.move_min_x = centerX - basketWidth / 2 + wallThickness / 2;
-        this.move_max_x = centerX + basketWidth / 2 - wallThickness / 2;
+        this.move_min_x = centerX - adjustedWidth / 2 + wallThickness / 2;
+        this.move_max_x = centerX + adjustedWidth / 2 - wallThickness / 2;
 
         const ground = Matter.Bodies.rectangle(
             centerX,
-            bottomY,
-            basketWidth,
+            adjustedBottomY,
+            adjustedWidth,
             wallThickness,
             {
                 isStatic: true,
@@ -302,10 +305,9 @@ class View extends ContainerX {
                 render: { fillStyle: '#8B4513' },
             }
         );
-
         const leftWall = Matter.Bodies.rectangle(
-            centerX - basketWidth / 2,
-            bottomY - basketHeight / 2,
+            centerX - adjustedWidth / 2,
+            adjustedBottomY - basketHeight / 2,
             wallThickness,
             basketHeight,
             {
@@ -314,10 +316,9 @@ class View extends ContainerX {
                 render: { fillStyle: '#8B4513' },
             }
         );
-
         const rightWall = Matter.Bodies.rectangle(
-            centerX + basketWidth / 2,
-            bottomY - basketHeight / 2,
+            centerX + adjustedWidth / 2,
+            adjustedBottomY - basketHeight / 2,
             wallThickness,
             basketHeight,
             {
@@ -331,68 +332,93 @@ class View extends ContainerX {
     }
 
     private buildBaseLine(): void {
-        const centerX = UIScale.safeToCanvasX(SAFE_WIDTH / 2);
         this.base_line = new createjs.MovieClip();
-        this.base_line.x = centerX;
-        this.base_line.y = UIScale.safeToCanvasY(-280); // y 오프셋은 내부에서 처리하는 게 낫습니다.
-
-        const shape = new createjs.Shape();
-        const startY = UIScale.safeToCanvasY(400);
-        const endY = UIScale.safeToCanvasY(1100);
-
-        shape.graphics.setStrokeStyle(1.5, 'round', 'round');
-        shape.graphics.beginStroke('rgba(255,0,0,1)');
-
-        shape.graphics.moveTo(0, startY).lineTo(0, endY);
-        shape.snapToPixel = true;
-        shape.graphics.endStroke();
-        this.base_line.addChild(shape);
         this.addChild(this.base_line);
 
         this.drop_target = this.resource.getLibrary('circle_2', 'bundle');
-        this.drop_target.x = centerX;
-        this.drop_target.y = UIScale.safeToCanvasY(340);
         this.addChild(this.drop_target);
+
+        this.applyBaseLineLayout();
+        window.addEventListener('resize', () => this.applyBaseLineLayout());
+    }
+
+    private applyBaseLineLayout(): void {
+        const { centerX, bottomY } = this.box.getPhysicsParams();
+        const boxScale = this.box.physicsScale;
+
+        const boxTopY = bottomY - this.box.getBoxHeight() * boxScale;
+        this.dropTargetY = boxTopY - 60 * boxScale; // ✅ 클래스 변수에 저장
+
+        this.drop_target.x = centerX;
+        this.drop_target.y = this.dropTargetY;
+
+        this.base_line.removeAllChildren();
+        const shape = new createjs.Shape();
+        shape.graphics.setStrokeStyle(1.5, 'round', 'round');
+        shape.graphics.beginStroke('rgba(255,0,0,1)');
+        shape.graphics.moveTo(0, this.dropTargetY).lineTo(0, bottomY);
+        shape.graphics.endStroke();
+        shape.snapToPixel = true;
+
+        this.base_line.addChild(shape);
+        this.base_line.x = centerX;
+        this.base_line.y = 0;
     }
 
     private buildGameOverLine(): void {
-        const safeY = 800; // Safe Area 기준 Y 좌표
-
-        // ✅ Canvas 좌표로 변환해서 저장
-        this.gameOverLine = UIScale.safeToCanvasY(safeY);
-
-        const centerX = UIScale.safeToCanvasX(SAFE_WIDTH / 2);
-        const gameoverLineWidth = SAFE_WIDTH * 0.85;
-
-        // 빨간선
+        // 비주얼 객체만 생성
         this.gameOverLineVisual = new createjs.MovieClip();
         this.gameOverLineShape = new createjs.Shape();
-        this.gameOverLineShape.visible = false;
-        this.gameOverLineShape.graphics
-            .setStrokeStyle(3)
-            .beginStroke('rgba(255, 0, 0, 0.7)')
-            .setStrokeDash([10])
-            .moveTo(centerX - gameoverLineWidth / 2, 0)
-            .lineTo(centerX + gameoverLineWidth / 2, 0);
-
-        // ✅ 변환 없이 직접 사용 (이미 Canvas 좌표)
-        this.gameOverLineVisual.y = this.gameOverLine;
         this.gameOverLineVisual.addChild(this.gameOverLineShape);
         this.addChild(this.gameOverLineVisual);
 
-        // 노란선
         this.warningVisual = new createjs.Shape();
+        this.addChild(this.warningVisual);
+        this.gameOverLineVisual.alpha = 0;
+
+        this.updateGameOverLine();
+        window.addEventListener('resize', () => this.updateGameOverLine());
+    }
+    private updateGameOverLine(): void {
+        const { centerX, bottomY, basketWidth } = this.box.getPhysicsParams();
+        const boxScale = this.box.physicsScale;
+        const boxTopY = bottomY - this.box.getBoxHeight() * boxScale;
+
+        // ✅ 박스 높이의 25% 지점을 게임오버 라인으로
+        this.gameOverLine = boxTopY + (bottomY - boxTopY) * 0.25;
+
+        const lineWidth = basketWidth * 0.95;
+
+        this.gameOverLineShape.graphics
+            .clear()
+            .setStrokeStyle(3)
+            .beginStroke('rgba(255, 0, 0, 0.7)')
+            .setStrokeDash([10])
+            .moveTo(centerX - lineWidth / 2, 0)
+            .lineTo(centerX + lineWidth / 2, 0);
+
+        this.gameOverLineVisual.y = this.gameOverLine;
+
         this.warningVisual.graphics
+            .clear()
             .setStrokeStyle(2)
             .beginStroke('rgba(255, 255, 0, 0.6)')
             .setStrokeDash([5])
-            .moveTo(centerX - gameoverLineWidth / 2, 0)
-            .lineTo(centerX + gameoverLineWidth / 2, 0);
+            .moveTo(centerX - lineWidth / 2, 0)
+            .lineTo(centerX + lineWidth / 2, 0);
 
-        // ✅ Canvas 좌표에 offset 직접 더하기
         this.warningVisual.y = this.gameOverLine + this.WARNING_LINE_OFFSET;
-        this.addChild(this.warningVisual);
-        this.gameOverLineVisual.alpha = 0;
+    }
+
+    private getBeadMcScale(type: number, physicsRadius: number): number {
+        if (!this.beadNaturalRadii[type]) {
+            const tempMc = this.resource.getLibrary('circle_2', `bead_${type}`);
+            const bounds = tempMc.getBounds();
+            this.beadNaturalRadii[type] = bounds
+                ? bounds.width / 2
+                : physicsRadius;
+        }
+        return physicsRadius / this.beadNaturalRadii[type];
     }
 
     // 다음 크기 원 생성
@@ -400,7 +426,8 @@ class View extends ContainerX {
         if ($type < 10) {
             // ✅ 1. 구슬의 반지름에 스케일 적용
             // 물리 엔진의 충돌 크기도 화면 커진 만큼 커져야 합니다.
-            const scaledRadius = size[$type + 1];
+            const boxScale = this.box.physicsScale;
+            const scaledRadius = size[$type + 1] * boxScale;
 
             const circle = Matter.Bodies.circle($px, $py, scaledRadius, {
                 label: `Bead_${this.cnt}`,
@@ -424,11 +451,13 @@ class View extends ContainerX {
                 'circle_2',
                 `bead_${circle.typeX}`
             );
-
-            // 위치는 물리 엔진의 위치를 그대로 추종 (Update 루프에서 처리될 것임)
             mc.x = circle.position.x;
             mc.y = circle.position.y;
 
+            // ✅ 물리 반지름 기준으로 정확히 맞춤
+            const mcScale = this.getBeadMcScale(circle.typeX, scaledRadius);
+            mc.scaleX = mcScale;
+            mc.scaleY = mcScale;
             this.beadCt.addChild(mc);
             this.setFace(mc, 4, 2000);
 
@@ -458,19 +487,17 @@ class View extends ContainerX {
     }
 
     private addBead($x: number = 640): void {
-        // 현재 구슬
         const type = this.bead_order[0];
         this.bead_order.shift();
 
-        // 새로운 랜덤 과일 추가
         const rnd = (Math.random() * 5) >> 0;
         this.bead_order.push(rnd);
 
-        // ✅ Y값 조절: 720x1280 기준 460 위치를 현재 기기 높이에 맞춰 계산
-        const spawnY = UIScale.safeToCanvasY(340);
+        const boxScale = this.box.physicsScale;
+        const scaledRadius = size[type] * boxScale;
 
-        // Matter 객체 생성 (460 대신 spawnY 사용)
-        const bead = Matter.Bodies.circle($x, spawnY, size[type], {
+        const spawnY = this.dropTargetY;
+        const bead = Matter.Bodies.circle($x, spawnY, scaledRadius, {
             label: `Bead_${this.cnt}`,
         }) as unknown as MyBody;
 
@@ -479,25 +506,21 @@ class View extends ContainerX {
         this.cnt++;
         Matter.World.add(this.engine.world, [bead]);
 
-        // 💡 중요: 생성 직후 '낙하 중' 상태로 등록
         this.droppingBeads.add(bead.label);
 
-        // CreateJS 오브젝트 생성
         const mc = this.resource.getLibrary('circle_2', `bead_${type}`);
         mc.x = bead.position.x;
         mc.y = bead.position.y;
 
-        // 회전 트윈
-        createjs.Tween.get(mc, { loop: -1, bounce: true }).to(
-            { rotation: 720, rotationDir: 1 },
-            1000
-        );
+        // ✅ 물리 반지름 기준으로 정확히 맞춤
+        const mcScale = this.getBeadMcScale(type, scaledRadius);
+        mc.scaleX = mcScale;
+        mc.scaleY = mcScale;
 
         this.beadCt.addChild(mc);
-
         this.arr_compos[bead.label] = { body: bead, mc };
 
-        // 💡 drop_target은 현재 조종할 과일
+        // ✅ drop_target 초기화 (순서 정리 - alpha/scale 먼저, 그 다음 tween)
         this.drop_target.alpha = 0;
         this.drop_target.scaleX = 0.1;
         this.drop_target.scaleY = 0.1;
@@ -506,12 +529,15 @@ class View extends ContainerX {
         const child = this.drop_target.getChildAt(0) as createjs.MovieClip;
         child.gotoAndStop(0);
 
-        // 트윈으로 다음 과일을 스케일 효과 적용하면서 나오게 한다.
+        // ✅ 다음 구슬 타입 기준으로 mcScale 계산
+        const nextType = this.bead_order[0];
+        const nextScaledRadius = size[nextType] * boxScale;
+        const nextMcScale = this.getBeadMcScale(nextType, nextScaledRadius);
+
         createjs.Tween.get(this.drop_target)
             .wait(500)
-            .to({ scaleX: 1, scaleY: 1, alpha: 1 }, 500);
+            .to({ scaleX: nextMcScale, scaleY: nextMcScale, alpha: 1 }, 500);
 
-        // 💡 nextCh는 "다음 과일"
         this.nextCh.showNext(this.bead_order[1]);
     }
     /**
@@ -523,7 +549,7 @@ class View extends ContainerX {
 
         if (this.bActive) {
             Matter.Engine.update(this.engine);
-
+            const boxScale = this.box.physicsScale;
             for (const label in this.arr_compos) {
                 const compos = this.arr_compos[label];
                 const bead = compos.body as MyBody; // Matter.Body를 MyBody로 형변환
@@ -651,13 +677,13 @@ class View extends ContainerX {
             console.warn('[View] stage가 null - 이벤트 무시');
             return;
         }
-
+        const boxScale = this.box.physicsScale;
         // 스테이지 scale과 stage.x 오프셋이 반영된 마우스 좌표로 변환
         const pt = this.stage.globalToLocal($x, $y);
         const targetX = Math.round(pt.x);
 
         const type = this.bead_order[0];
-        const space = size[type] / 2;
+        const space = (size[type] * boxScale) / 2;
         const shrink = 10;
 
         const minX = this.move_min_x + space + shrink;

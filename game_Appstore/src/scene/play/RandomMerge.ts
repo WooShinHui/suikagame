@@ -207,7 +207,7 @@ export class RandomMerge extends PureDomX {
 
         // 4. 좌표 계산
         const canvasX = 60;
-        const canvasY = 220;
+        const canvasY = 140;
 
         // ✅ 가로(X): 화면 중앙 기준에서 ratioScale에 따라 수평 이동
         const distanceFromCenter =

@@ -43,7 +43,7 @@ export class Score extends ContainerX {
 
         // ✅ 위치는 항상 Canvas 중앙 고정 (900x1600 기준)
         const canvasX = CANVAS_ORIGINAL_WIDTH / 2;
-        const canvasY = 260;
+        const canvasY = 180;
 
         this.scoreRoot.x = canvasX;
         this.scoreRoot.y = canvasY;
@@ -163,46 +163,6 @@ export class Score extends ContainerX {
                 createjs.Ease.quadIn
             )
             .call(() => this.removeChild(ct));
-
-        // 파티클
-        const particleCount =
-            value >= 100 ? 4 : value >= 20 ? 3 : value >= 10 ? 2 : 0;
-        const particles = ['⭐', '✨', '💫'];
-
-        for (let i = 0; i < particleCount; i++) {
-            const star = new createjs.Text(
-                particles[i % particles.length],
-                `${16 + Math.random() * 10}px Arial`,
-                '#FFD700'
-            );
-            const angle = (i / particleCount) * Math.PI * 2;
-            const dist = 25 + Math.random() * 20;
-            star.x = x + Math.cos(angle) * 15;
-            star.y = y;
-            star.textAlign = 'center';
-            star.alpha = 0;
-            this.addChild(star);
-
-            createjs.Tween.get(star)
-                .wait(i * 40)
-                .to(
-                    {
-                        alpha: 1,
-                        x: star.x + Math.cos(angle) * dist,
-                        y: star.y + Math.sin(angle) * dist - 20,
-                        scaleX: 1.3,
-                        scaleY: 1.3,
-                    },
-                    200,
-                    createjs.Ease.quadOut
-                )
-                .to(
-                    { alpha: 0, y: star.y - 60, scaleX: 0.5, scaleY: 0.5 },
-                    300,
-                    createjs.Ease.quadIn
-                )
-                .call(() => this.removeChild(star));
-        }
     }
 
     private updateDisplay(): void {

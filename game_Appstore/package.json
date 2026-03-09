@@ -14,6 +14,7 @@
     },
     "dependencies": {
         "@capacitor-community/admob": "^8.0.0",
+        "@capacitor/app": "^8.0.1",
         "@firebase/firestore": "^4.11.0",
         "@types/createjs": "^0.0.32",
         "@types/matter-js": "^0.19.8",

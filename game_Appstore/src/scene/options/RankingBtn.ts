@@ -15,7 +15,7 @@ export class RankingBtn extends PureDomX {
     private readonly IMG_PRESSED = './assets/images/btn_ranking_n.png';
 
     // ✅ 9:16 비율에서의 고정 간격 (화면 픽셀)
-    private readonly BUTTON_GAP = 10;
+    private readonly BUTTON_GAP = 16;
 
     constructor(optionBtn?: OptionBtn) {
         const container = document.createElement('div');
@@ -99,7 +99,7 @@ export class RankingBtn extends PureDomX {
         const sh = window.innerHeight;
         const scale = UIScale.scale;
 
-        const buttonSize = 100 * scale;
+        const buttonSize = 80 * scale;
 
         // ✅ OptionBtn 기준으로 상대 배치
         let screenX: number;

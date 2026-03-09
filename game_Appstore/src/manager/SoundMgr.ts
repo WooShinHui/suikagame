@@ -18,6 +18,9 @@ export class SoundMgr {
 
     private soundCache: Record<string, HTMLAudioElement> = {};
 
+    private audioCtx: AudioContext | null = null;
+    private audioBuffers: Record<string, AudioBuffer> = {};
+
     private readonly SOUND_TABLE: string[] = [
         'pu_0',
         'pu_1',
@@ -120,7 +123,8 @@ export class SoundMgr {
     public playBGM(src: string, volume: number): void {
         // ✅ paused 상태 무관하게 파일명만 비교
         const newFilename = src.split('/').pop() ?? src;
-        const currentFilename = this._bgm?.src?.split('/').pop() ?? '';
+        const currentFilename =
+            this._bgm?.src?.split('/').pop()?.split('?')[0] ?? '';
 
         if (this._bgm && currentFilename === newFilename) {
             // 같은 곡 - 볼륨만 조정, 재시작 절대 안 함
@@ -185,72 +189,64 @@ export class SoundMgr {
     ======================================================= */
     public playSound(name: string): Promise<void> {
         return new Promise((resolve) => {
-            const audio = this.soundCache[name];
-
-            if (!audio) {
-                console.warn(
-                    `[SoundMgr] ${name} 사운드를 캐시에서 찾을 수 없습니다.`
-                );
+            if (!this.audioCtx || !this.audioBuffers[name]) {
+                resolve();
+                return;
+            }
+            if (this._sfxMuted) {
                 resolve();
                 return;
             }
 
-            // 기존 재생 중이면 처음으로 되감기
-            audio.currentTime = 0;
-            audio.volume = this._sfxVolume;
-            audio.muted = this._sfxMuted;
+            const source = this.audioCtx.createBufferSource();
+            source.buffer = this.audioBuffers[name];
 
-            // 재생 완료 시 Promise resolve
-            const onEnded = () => {
-                audio.removeEventListener('ended', onEnded);
-                resolve();
-            };
-            audio.addEventListener('ended', onEnded);
+            const gainNode = this.audioCtx.createGain();
+            gainNode.gain.value = this._sfxVolume;
 
-            audio.play().catch((e) => {
-                console.error('재생 실패:', e);
-                resolve();
-            });
-
-            // (선택 사항) 중단 관리를 위해 배열에 보관하고 싶다면
-            // ISound 인터페이스를 HTMLAudioElement를 지원하도록 수정해야 합니다.
+            source.connect(gainNode);
+            gainNode.connect(this.audioCtx.destination);
+            source.onended = () => resolve();
+            source.start(0);
         });
     }
 
     /* =======================================================
         HTMLAudio SFX
     ======================================================= */
-    private preloadSfx() {
-        this.SOUND_TABLE.forEach((name) => {
-            // beads와 btn은 로그상 .wav 파일입니다. 나머지는 .mp3로 가정합니다.
+    private async preloadSfx() {
+        this.audioCtx = new (window.AudioContext ||
+            (window as any).webkitAudioContext)();
+
+        // ✅ 순차 로드 (동시 스트림 한도 문제 없음)
+        for (const name of this.SOUND_TABLE) {
             const isWav = ['beads', 'btn'].includes(name);
             const ext = isWav ? 'wav' : 'mp3';
-
-            const audio = new Audio(`assets/sounds/${name}.${ext}`);
-
-            // 에러 핸들링 추가: 로드 실패 시 로그 출력
-            audio.onerror = () => {
-                console.error(
-                    `[SoundMgr] 파일 로드 실패: assets/sounds/${name}.${ext}`
+            try {
+                const res = await fetch(`./assets/sounds/${name}.${ext}`);
+                const arrayBuffer = await res.arrayBuffer();
+                this.audioBuffers[name] = await this.audioCtx.decodeAudioData(
+                    arrayBuffer
                 );
-            };
-
-            audio.preload = 'auto';
-            audio.volume = this._sfxVolume;
-            audio.muted = this._sfxMuted;
-            this.soundCache[name] = audio;
-        });
+            } catch (e) {
+                console.error(`[SoundMgr] 로드 실패: ${name}.${ext}`);
+            }
+        }
     }
 
     public playSfx(name: string) {
-        const audio = this.soundCache[name];
-        if (!audio) return;
+        if (!this.audioCtx || !this.audioBuffers[name]) return;
+        if (this._sfxMuted) return;
 
-        audio.volume = this._sfxVolume;
-        audio.muted = this._sfxMuted;
+        const source = this.audioCtx.createBufferSource();
+        source.buffer = this.audioBuffers[name];
 
-        audio.currentTime = 0;
-        audio.play().catch(() => {});
+        const gainNode = this.audioCtx.createGain();
+        gainNode.gain.value = this._sfxVolume;
+
+        source.connect(gainNode);
+        gainNode.connect(this.audioCtx.destination);
+        source.start(0);
     }
 
     public clearSoundInstance(): void {

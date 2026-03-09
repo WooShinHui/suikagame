@@ -119,7 +119,7 @@ export class Result {
         if (typeof d.finalScore === 'number') this.finalScore = d.finalScore;
         EVT_HUB_SAFE.emit(G_EVT.PLAY.REQUEST_COLLISION_SAVE, {
             finalScore: this.finalScore,
-            userId: this.currentUserId,
+            userId: this.currentUserId, // ← 여기가 null이면 guest 처리됨
             gameSessionId: null,
             username: this.currentUsername,
         });
@@ -152,7 +152,7 @@ export class Result {
             this.currentUserId = d.userId || this.currentUserId;
         }
 
-        // 로딩 표시
+        // ✅ 로딩 UI 즉시 표시
         this.resultCt.style.display = 'flex';
         this.resultCt.style.opacity = '0';
         this.resultCt.innerHTML = `
@@ -160,7 +160,7 @@ export class Result {
                 background: linear-gradient(180deg,#f0c060 0%,#e8a020 50%,#c47010 100%);
                 border-radius:${this.px(16)}px;
                 padding:${this.px(16)}px ${this.px(32)}px;
-              box-shadow: 0 3px 0 #7a4a05, 0 ${this.px(4)}px ${this.px(
+                box-shadow: 0 3px 0 #7a4a05, 0 ${this.px(4)}px ${this.px(
             6
         )}px rgba(0,0,0,0.25);
                 color:#fff; font-size:${this.px(15)}px; font-weight:800;
@@ -172,13 +172,47 @@ export class Result {
             this.resultCt.style.opacity = '1';
         });
 
+        // ✅ 랭킹 로드 즉시 시작 (이벤트 수신과 동시에)
+        const rankingPromise = API_CONNECTOR.getRankingData(
+            this.currentUserId || 'guest'
+        );
+
         try {
-            const data = await API_CONNECTOR.getRankingData(
-                this.currentUserId || 'guest'
-            );
+            const data = await rankingPromise;
+            let topRankings: RankingEntry[] = data.topRankings || [];
+            let myRanking: RankingEntry | null = data.myRanking || null;
+
+            // ✅ 신기록인 경우 랭킹에 내 점수 낙관적으로 반영
+            if (isNewRecord && this.currentUserId) {
+                // 기존 내 항목 제거
+                topRankings = topRankings.filter(
+                    (e) => String(e.userId) !== String(this.currentUserId)
+                );
+
+                // 새 점수로 삽입
+                const myEntry: RankingEntry = {
+                    userId: this.currentUserId,
+                    username: this.currentUsername || 'Me',
+                    total_score: this.finalScore,
+                    rank: 0, // 임시, 아래서 재계산
+                    countryCode: myRanking?.countryCode || 'un',
+                };
+
+                topRankings.push(myEntry);
+                // 점수 내림차순 정렬 후 rank 재부여
+                topRankings.sort((a, b) => b.total_score - a.total_score);
+                topRankings.forEach((e, i) => (e.rank = i + 1));
+
+                // myRanking도 갱신
+                myRanking =
+                    topRankings.find(
+                        (e) => String(e.userId) === String(this.currentUserId)
+                    ) || myRanking;
+            }
+
             this.displayRanking(
-                data.topRankings || [],
-                data.myRanking || null,
+                topRankings,
+                myRanking,
                 this.previousHighScore || 0,
                 type,
                 isNewRecord
@@ -435,13 +469,17 @@ box-shadow: 0 3px 0 #7a4a05
 
         // ── 재시작 버튼 ─────────────────────────────
         const restartBtn = document.createElement('button');
+        const isLandscape = window.innerWidth > window.innerHeight;
+        const btnSize = isLandscape ? this.px(50) : this.px(80);
+        const btnBottom = isLandscape ? this.px(20) : this.px(40);
+
         Object.assign(restartBtn.style, {
             position: 'absolute',
-            bottom: `${this.px(40)}px`,
+            bottom: `${btnBottom}px`,
             left: '50%',
             transform: 'translateX(-50%)',
-            width: `${this.px(80)}px`,
-            height: `${this.px(80)}px`,
+            width: `${btnSize}px`,
+            height: `${btnSize}px`,
             background:
                 'url("./assets/images/btn_re_s.png") no-repeat center center',
             backgroundSize: 'contain',

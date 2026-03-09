@@ -23,7 +23,7 @@
             name="apple-mobile-web-app-status-bar-style"
             content="black-translucent"
         />
-        <div
+        <!-- <div
             id="debug-log"
             style="
                 position: fixed;
@@ -40,29 +40,29 @@
                 overflow-y: auto;
                 pointer-events: none;
             "
-        ></div>
+        ></div> -->
 
         <script>
-            const _log = (msg) => {
-                const el = document.getElementById('debug-log');
-                if (!el) return;
-                const line = document.createElement('div');
-                line.textContent = `${new Date()
-                    .toISOString()
-                    .slice(11, 23)} ${msg}`;
-                el.insertBefore(line, el.firstChild);
-                if (el.children.length > 30) el.lastChild.remove();
-            };
-            window._log = _log;
+            // const _log = (msg) => {
+            //     const el = document.getElementById('debug-log');
+            //     if (!el) return;
+            //     const line = document.createElement('div');
+            //     line.textContent = `${new Date()
+            //         .toISOString()
+            //         .slice(11, 23)} ${msg}`;
+            //     el.insertBefore(line, el.firstChild);
+            //     if (el.children.length > 30) el.lastChild.remove();
+            // };
+            // window._log = _log;
 
-            // ✅ 핵심 이벤트 감지
-            document.addEventListener('visibilitychange', () => {
-                _log(`visibility: ${document.hidden ? 'hidden' : 'visible'}`);
-            });
-            window.addEventListener('focus', () => _log('window: focus'));
-            window.addEventListener('blur', () => _log('window: blur'));
-            window.addEventListener('pageshow', () => _log('pageshow'));
-            window.addEventListener('pagehide', () => _log('pagehide'));
+            // // ✅ 핵심 이벤트 감지
+            // document.addEventListener('visibilitychange', () => {
+            //     _log(`visibility: ${document.hidden ? 'hidden' : 'visible'}`);
+            // });
+            // window.addEventListener('focus', () => _log('window: focus'));
+            // window.addEventListener('blur', () => _log('window: blur'));
+            // window.addEventListener('pageshow', () => _log('pageshow'));
+            // window.addEventListener('pagehide', () => _log('pagehide'));
         </script>
         <style>
             html,

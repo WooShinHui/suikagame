@@ -13,6 +13,7 @@ import { RandomMerge } from './RandomMerge';
 import { EVT_HUB_SAFE } from '../../events/SafeEventHub';
 import { AUTH_SERVICE } from '../../auth/AuthService';
 import { API_CONNECTOR } from '../../fetch/ApiConnector';
+import { App as CapacitorApp } from '@capacitor/app';
 
 class PLAY extends SceneX {
     private _view!: View | null;
@@ -65,32 +66,34 @@ class PLAY extends SceneX {
     public async create(): Promise<void> {}
 
     public onMounted(): void {
-        console.log('🎮 PLAY.onMounted() 시작');
         EVT_HUB_SAFE.on(G_EVT.RE.START, this.onRestart);
         EVT_HUB_SAFE.on(G_EVT.MENU.INGAME_OPEN_OPTION, this.onOpenOption);
         this.buildView();
         this.buildResult();
         this.buildController();
         this.buildOptionBtn();
-        this.buildRankingBtn(); // ✅ 추가
+        this.buildRankingBtn();
         this.buildOption();
         this.buildWarningOverlay();
         this.buildRandomMerge();
 
-        this.startNewGameSession()
-            .catch((err) => {
-                // ✅ 세션 실패해도 게임은 시작
-                console.error('세션 초기화 실패, 게임은 계속:', err);
-            })
-            .finally(() => {
-                // ✅ 성공/실패 모두 여기서 처리
-                this._view?.startGame();
-                (window as any).LoadingScreen?.finish();
-            });
+        // ✅ 게임 즉시 시작 (Auth 기다리지 않음)
+        this._view?.startGame();
+        (window as any).LoadingScreen?.finish();
+
+        // ✅ Auth는 백그라운드에서 조용히 처리
+        this.startNewGameSession().catch((err) => {
+            console.error('세션 초기화 실패:', err);
+        });
+        CapacitorApp.addListener('backButton', () => {
+            this.showExitDialog();
+        });
     }
 
     public dispose(): void {
         console.log('[PLAY] Scene Dispose: 리스너 및 컴포넌트 정리 시작');
+
+        CapacitorApp.removeAllListeners();
 
         EVT_HUB_SAFE.off(G_EVT.LOGIN.LOGIN_SUCCESS, this.onLoginSuccess);
         EVT_HUB_SAFE.off(G_EVT.MENU.INGAME_OPEN_OPTION, this.onOpenOption);
@@ -190,7 +193,6 @@ class PLAY extends SceneX {
     public async startNewGameSession(): Promise<void> {
         console.log('🔐 통합 인증 시작...');
 
-        // ✅ 통합 인증 처리 (CrazyGames → Firebase → localStorage)
         const userInfo = await AUTH_SERVICE.authenticate();
 
         this.currentId = userInfo.userId;
@@ -198,14 +200,68 @@ class PLAY extends SceneX {
 
         console.log('✅ 인증 완료:', userInfo);
 
-        console.log('🔹 Firebase 세션 생성 시작');
-        await API_CONNECTOR.setCrazyGamesUser({
+        // ✅ API_CONNECTOR에 유저 정보 등록 (currentId 세팅)
+        await API_CONNECTOR.setUser({
             userId: userInfo.userId,
             username: userInfo.username,
             countryCode: userInfo.countryCode,
             profilePicture: userInfo.profilePicture,
         });
-        console.log('✅ Firebase 세션 생성 완료');
+    }
+    private showExitDialog(): void {
+        if (document.getElementById('exit-dialog')) return;
+
+        const dialog = document.createElement('div');
+        dialog.id = 'exit-dialog';
+        dialog.innerHTML = `
+            <div style="
+                position:fixed; top:0; left:0; width:100%; height:100%;
+                background:rgba(0,0,0,0.7); z-index:9999;
+                display:flex; align-items:center; justify-content:center;
+            ">
+                <div style="
+                    background:linear-gradient(180deg,#fffbe8,#fff3c8);
+                    border:4px solid #e8a020;
+                    border-radius:24px;
+                    padding:44px 52px;
+                    text-align:center;
+                    box-shadow:0 6px 0 #7a4a05, 0 10px 30px rgba(0,0,0,0.3);
+                    font-family:'SchoolSafeDungGeunMiSo', sans-serif;
+                    color:#5a3000;
+                    width:80%;
+                    max-width:360px;
+                ">
+                    <div style="font-size:24px; font-weight:800; margin-bottom:32px; letter-spacing:1px;">
+                        게임을 종료할까요?
+                    </div>
+                    <div style="display:flex; gap:16px;">
+                        <button id="exit-cancel" style="
+                            flex:1; padding:16px;
+                            background:linear-gradient(180deg,#f0c060,#c47010);
+                            border:none; border-radius:14px;
+                            box-shadow:0 4px 0 #7a4a05;
+                            color:#fff; font-size:17px; font-weight:700;
+                            cursor:pointer; font-family:inherit; letter-spacing:0.5px;
+                        ">계속하기</button>
+                        <button id="exit-confirm" style="
+                            flex:1; padding:16px;
+                            background:linear-gradient(180deg,#ff7070,#cc3030);
+                            border:none; border-radius:14px;
+                            box-shadow:0 4px 0 #880000;
+                            color:#fff; font-size:17px; font-weight:700;
+                            cursor:pointer; font-family:inherit; letter-spacing:0.5px;
+                        ">종료</button>
+                    </div>
+                </div>
+            </div>`;
+
+        document.body.appendChild(dialog);
+
+        document.getElementById('exit-cancel')!.onclick = () => dialog.remove();
+        document.getElementById('exit-confirm')!.onclick = () => {
+            dialog.remove();
+            CapacitorApp.exitApp();
+        };
     }
 }
 

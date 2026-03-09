@@ -51,12 +51,18 @@ export class AuthService {
     // ─────────────────────────────────────────────
     private async tryGetFirebaseAnonymousUser(): Promise<UserInfo | null> {
         try {
-            const existingUser = await new Promise<any>((resolve) => {
-                const unsubscribe = onAuthStateChanged(auth, (user) => {
-                    unsubscribe();
-                    resolve(user);
-                });
-            });
+            // ✅ 3초 타임아웃 - 느린 네트워크에서 무한대기 방지
+            const existingUser = await Promise.race([
+                new Promise<any>((resolve) => {
+                    const unsubscribe = onAuthStateChanged(auth, (user) => {
+                        unsubscribe();
+                        resolve(user);
+                    });
+                }),
+                new Promise<null>((resolve) =>
+                    setTimeout(() => resolve(null), 3000)
+                ),
+            ]);
 
             if (existingUser) {
                 // ✅ 저장된 닉네임 없으면 밀크티 닉네임 생성
