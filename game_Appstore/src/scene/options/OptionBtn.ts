@@ -77,51 +77,19 @@ export class OptionBtn extends PureDomX {
         this.htmlElement.appendChild(this.btn);
     }
 
-    private applyResize() {
+    // OptionBtn.ts - applyResize() 수정
+    public applyResize() {
         UIScale.update();
-
         const sw = window.innerWidth;
-        const sh = window.innerHeight;
         const scale = UIScale.scale;
+        const uiScale = UIScale.uiScale;
 
-        // Canvas 렌더링 영역
-        const canvasRenderWidth = CANVAS_ORIGINAL_WIDTH * scale;
+        const logicalWidth = UIScale.logicalWidth;
+        const canvasLeft = (sw - logicalWidth * scale) / 2;
 
-        // Canvas 화면 위치
-        const canvasLeft = (sw - canvasRenderWidth) / 2;
-        const canvasTop = 0;
-
-        // Canvas 논리 좌표
-        const canvasX = 20;
-        const canvasY = 20;
-        const buttonSize = 80 * scale;
-
-        // Canvas 좌표 → 화면 좌표
-        let screenX = canvasLeft + canvasX * scale;
-        let screenY = canvasTop + canvasY * scale;
-
-        // ✅ 화면 비율 체크
-        const aspectRatio = sw / sh;
-        const targetAspectRatio = 9 / 16;
-
-        // 가로가 좁을 때만 조정
-        if (aspectRatio < targetAspectRatio) {
-            const canvasVisibleLeft = Math.max(0, canvasLeft);
-            const canvasVisibleRight = Math.min(
-                sw,
-                canvasLeft + canvasRenderWidth
-            );
-
-            const margin = 10;
-
-            if (screenX < canvasVisibleLeft) {
-                screenX = canvasVisibleLeft + margin;
-            }
-
-            if (screenX + buttonSize > canvasVisibleRight) {
-                screenX = canvasVisibleRight - buttonSize - margin;
-            }
-        }
+        const buttonSize = 80 * scale * uiScale; // ✅
+        const screenX = canvasLeft + 36 * scale;
+        const screenY = 30 * scale;
 
         this.btn.style.left = `${screenX}px`;
         this.btn.style.top = `${screenY}px`;

@@ -8,7 +8,7 @@ export class ScoreLine extends ContainerX {
     private base: createjs.MovieClip;
     private box: Box;
 
-    private readonly BOX_BOTTOM_OFFSET = 60; // 박스 하단에서 아래로 간격
+    private readonly BOX_BOTTOM_OFFSET = 80; // 박스 하단에서 아래로 간격
 
     constructor(box: Box) {
         super();
@@ -32,21 +32,24 @@ export class ScoreLine extends ContainerX {
     }
 
     private applyLayout(): void {
+        this.box.applyScale();
+
         const { centerX, bottomY } = this.box.getPhysicsParams();
         const boxScale = this.box.physicsScale;
 
-        // ✅ bounds 기준 정확한 중앙 설정
-        // x: -28.2, width: 616 → 중앙 = -28.2 + 616/2 = 279.8
-        this.base.regX =
-            this.base.getBounds()!.x + this.base.getBounds()!.width / 2;
-        this.base.regY =
-            this.base.getBounds()!.y + this.base.getBounds()!.height / 2;
+        const bounds = this.base.getBounds()!;
+
+        // 수평 중앙만 맞추고 regY는 0 고정
+        this.base.regX = bounds.x + bounds.width / 2;
+        this.base.regY = 0;
 
         this.scaleX = boxScale;
         this.scaleY = boxScale;
 
         this.x = centerX;
-        this.y = bottomY + this.BOX_BOTTOM_OFFSET;
+
+        const GAP = 16; // 이 값만 조정
+        this.y = bottomY + GAP - bounds.y * boxScale;
     }
 
     public activateFruit(type: number) {

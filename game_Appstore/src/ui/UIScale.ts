@@ -5,13 +5,16 @@ export const SAFE_HEIGHT = 1280;
 // Canvas 원본 크기 (배경 에셋 크기)
 export const CANVAS_ORIGINAL_WIDTH = 900;
 export const CANVAS_ORIGINAL_HEIGHT = 1600;
+export const CANVAS_EXTENDED_WIDTH = 1200;
 
 export class UIScale {
     static scale = 1;
+    static logicalWidth = CANVAS_ORIGINAL_WIDTH;
     static canvasOffsetX = 0;
     static canvasOffsetY = 0;
     static safeOffsetX = 0;
     static safeOffsetY = 0;
+    static uiScale = 1;
 
     static canvasWidth = CANVAS_ORIGINAL_WIDTH;
     static canvasHeight = CANVAS_ORIGINAL_HEIGHT;
@@ -25,6 +28,10 @@ export class UIScale {
 
         // ✅ 무조건 세로 높이에 맞춤
         this.scale = sh / CANVAS_ORIGINAL_HEIGHT;
+        this.logicalWidth = Math.min(sw / this.scale, CANVAS_EXTENDED_WIDTH);
+
+        const canvasScreenWidth = CANVAS_ORIGINAL_WIDTH * this.scale;
+        this.uiScale = Math.min(1, sw / canvasScreenWidth);
 
         // 세로가 꽉 찼으므로 세로 오프셋은 0
         this.canvasOffsetY = 0;

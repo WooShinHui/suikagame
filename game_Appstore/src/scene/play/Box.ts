@@ -4,8 +4,8 @@ import { UIScale, SAFE_WIDTH } from '../../ui/UIScale';
 export class Box extends ContainerX {
     private boxMc: createjs.MovieClip;
 
-    private readonly ASSET_WIDTH = 922;
-    private readonly ASSET_HEIGHT = 939;
+    private readonly ASSET_WIDTH = 901;
+    private readonly ASSET_HEIGHT = 917;
 
     constructor() {
         super();
@@ -25,7 +25,7 @@ export class Box extends ContainerX {
         console.log(b?.width, b?.height);
     }
 
-    private applyScale(): void {
+    public applyScale(): void {
         const sw = window.innerWidth;
         const sh = window.innerHeight;
 
@@ -45,7 +45,7 @@ export class Box extends ContainerX {
 
         // ✅ 박스 상단을 고정 Y에 앵커 → 상단 UI와 간격 일정하게 유지
         // 박스가 작아져도 상단은 고정, 아래로만 줄어듦
-        const BOX_TOP_ANCHOR = UIScale.safeToCanvasY(280); // 상단 UI 아래 고정값
+        const BOX_TOP_ANCHOR = UIScale.safeToCanvasY(240); // 상단 UI 아래 고정값
         const boxHalfHeight = (this.ASSET_HEIGHT / 2) * scale;
 
         this.x = canvasCenterX;

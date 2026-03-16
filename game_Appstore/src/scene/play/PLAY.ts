@@ -169,7 +169,7 @@ class PLAY extends SceneX {
     }
 
     private buildRandomMerge(): void {
-        this._randomMerge = new RandomMerge(this._view!);
+        this._randomMerge = new RandomMerge(this._view!, this._optionBtn);
     }
 
     private buildOption() {

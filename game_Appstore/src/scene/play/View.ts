@@ -243,7 +243,7 @@ class View extends ContainerX {
     private buildBackgroundAndLayer(): void {
         const bg = this.resource.getLibrary('circle_2', 'mBg');
         UIScale.update();
-        bg.x = CANVAS_ORIGINAL_WIDTH / 2 - 1422; // 2844 / 2
+        bg.x = CANVAS_ORIGINAL_WIDTH / 2 - 600;
         bg.y = 0;
         this.addChild(bg);
 
@@ -347,7 +347,7 @@ class View extends ContainerX {
         const boxScale = this.box.physicsScale;
 
         const boxTopY = bottomY - this.box.getBoxHeight() * boxScale;
-        this.dropTargetY = boxTopY - 60 * boxScale; // ✅ 클래스 변수에 저장
+        this.dropTargetY = boxTopY - 20 * boxScale; // ✅ 클래스 변수에 저장
 
         this.drop_target.x = centerX;
         this.drop_target.y = this.dropTargetY;

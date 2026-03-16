@@ -3,6 +3,7 @@ import { EVT_HUB_SAFE } from '../../events/SafeEventHub';
 import { G_EVT } from '../../events/EVT_HUB';
 import PureDomX from '../../core/PureDomX';
 import { SoundMgr } from '../../manager/SoundMgr';
+import { CANVAS_ORIGINAL_WIDTH } from '../../ui/UIScale';
 import { UIScale } from '../../ui/UIScale';
 import type { OptionBtn } from './OptionBtn';
 
@@ -94,58 +95,31 @@ export class RankingBtn extends PureDomX {
 
     private applyResize() {
         UIScale.update();
-
-        const sw = window.innerWidth;
-        const sh = window.innerHeight;
         const scale = UIScale.scale;
+        const uiScale = UIScale.uiScale;
 
-        const buttonSize = 80 * scale;
-
-        // ✅ OptionBtn 기준으로 상대 배치
-        let screenX: number;
-        let screenY: number;
+        const buttonSize = 80 * scale * uiScale; // ✅
 
         if (this.optionBtn) {
-            // OptionBtn의 오른쪽 끝 + 고정 간격
-            const gapScaled = this.BUTTON_GAP * scale;
-            screenX = this.optionBtn.getButtonRight() + gapScaled;
-            screenY = this.optionBtn.getButtonTop();
-        } else {
-            // OptionBtn이 없으면 절대 배치 (fallback)
-            const canvasRenderWidth = 900 * scale;
-            const canvasLeft = (sw - canvasRenderWidth) / 2;
-            const canvasTop = 0;
-            const canvasX = 130;
-            const canvasY = 20;
+            (this.optionBtn as any).applyResize?.();
+            const gapScaled = this.BUTTON_GAP * scale * uiScale; // ✅
+            const screenX = this.optionBtn.getButtonRight() + gapScaled;
+            const screenY = this.optionBtn.getButtonTop();
 
-            screenX = canvasLeft + canvasX * scale;
-            screenY = canvasTop + canvasY * scale;
-
-            // 화면 비율 체크
-            const aspectRatio = sw / sh;
-            const targetAspectRatio = 9 / 16;
-
-            if (aspectRatio < targetAspectRatio) {
-                const canvasVisibleLeft = Math.max(0, canvasLeft);
-                const canvasVisibleRight = Math.min(
-                    sw,
-                    canvasLeft + canvasRenderWidth
-                );
-                const margin = 10;
-
-                if (screenX < canvasVisibleLeft) {
-                    screenX = canvasVisibleLeft + margin;
-                }
-
-                if (screenX + buttonSize > canvasVisibleRight) {
-                    screenX = canvasVisibleRight - buttonSize - margin;
-                }
-            }
+            this.btn.style.left = `${screenX}px`;
+            this.btn.style.top = `${screenY}px`;
+            this.btn.style.width = `${buttonSize}px`;
+            this.btn.style.height = `${buttonSize}px`;
         }
+    }
 
-        this.btn.style.left = `${screenX}px`;
-        this.btn.style.top = `${screenY}px`;
-        this.btn.style.width = `${buttonSize}px`;
-        this.btn.style.height = `${buttonSize}px`;
+    public getButtonRight(): number {
+        return (
+            parseFloat(this.btn.style.left) + parseFloat(this.btn.style.width)
+        );
+    }
+
+    public getButtonTop(): number {
+        return parseFloat(this.btn.style.top);
     }
 }

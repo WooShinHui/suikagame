@@ -9,8 +9,12 @@ import {
     CANVAS_ORIGINAL_HEIGHT,
 } from '../../ui/UIScale';
 import View from './View';
+import { OptionBtn } from '../options/OptionBtn';
 
 export class RandomMerge extends PureDomX {
+    private optionBtn: OptionBtn | null = null;
+    private readonly BUTTON_GAP = 16;
+
     private static instance: RandomMerge | null = null;
     private count: number = 0;
     private readonly MAX_ITEM_COUNT = 1;
@@ -20,7 +24,7 @@ export class RandomMerge extends PureDomX {
     private readonly IMG_NORMAL = './assets/images/Random_Merge_s.png';
     private readonly IMG_PRESSED = './assets/images/Random_Merge_n.png';
 
-    constructor(private view: View) {
+    constructor(private view: View, optionBtn?: OptionBtn) {
         if (RandomMerge.instance) return RandomMerge.instance;
 
         const container = document.createElement('div');
@@ -70,6 +74,7 @@ export class RandomMerge extends PureDomX {
 
         window.addEventListener('resize', () => this.applyResize());
         RandomMerge.instance = this;
+        this.optionBtn = optionBtn || null;
     }
 
     public async reset() {
@@ -180,65 +185,53 @@ export class RandomMerge extends PureDomX {
 
     private applyResize() {
         UIScale.update();
-
         const sw = window.innerWidth;
         const sh = window.innerHeight;
         const scale = UIScale.scale;
 
-        // 1. 기준 비율 및 현재 비율 계산
-        const targetRatio = 9 / 16;
-        const currentRatio = sw / sh;
-
-        // ✅ 가로가 좁아지면 반응하는 비율
-        const ratioScale =
-            currentRatio < targetRatio ? currentRatio / targetRatio : 1;
-        const sizeScale = Math.max(0.5, ratioScale);
-
-        // 2. 캔버스 렌더링 영역 및 오프셋 계산
-        const canvasRenderWidth = CANVAS_ORIGINAL_WIDTH * scale;
-        const canvasRenderHeight = CANVAS_ORIGINAL_HEIGHT * scale;
-        const canvasTop = (sh - canvasRenderHeight) / 2; // 캔버스의 실제 상단 시작점
-
-        // 3. 버튼 크기 계산 (271x172 비율)
         const imgAspectRatio = 172 / 271;
-        const baseWidth = 200;
-        const buttonWidth = baseWidth * scale * sizeScale;
+
+        const uiScale = UIScale.uiScale; // ✅ 추가
+        const buttonWidth = 200 * scale * uiScale;
         const buttonHeight = buttonWidth * imgAspectRatio;
 
-        // 4. 좌표 계산
-        const canvasX = 60;
-        const canvasY = 140;
+        const logicalWidth = UIScale.logicalWidth;
+        const canvasLeft = (sw - logicalWidth * scale) / 2;
 
-        // ✅ 가로(X): 화면 중앙 기준에서 ratioScale에 따라 수평 이동
-        const distanceFromCenter =
-            (CANVAS_ORIGINAL_WIDTH / 2 - canvasX) * scale * ratioScale;
-        let screenX = sw / 2 - distanceFromCenter;
+        const VERTICAL_GAP = 18; // ✅ 옵션/랭킹 버튼 하단과의 간격 (px)
 
-        // ✅ 세로(Y): ratioScale을 제거하여 위아래 이동을 막고 위치 고정
-        let screenY = canvasTop + canvasY * scale;
+        let screenX: number;
+        let screenY: number;
 
-        // 5. 가시 영역(화면 끝) 경계값 보정
-        const margin = 15;
-        const leftLimit = margin;
-        const rightLimit = sw - buttonWidth - margin;
-
-        if (screenX < leftLimit) {
-            screenX = leftLimit;
+        if (this.optionBtn) {
+            (this.optionBtn as any).applyResize?.();
+            // X는 옵션버튼 왼쪽에 맞춤
+            screenX = canvasLeft + 30 * scale;
+            // ✅ Y는 옵션버튼 하단 + 고정 gap
+            screenY =
+                this.optionBtn.getButtonTop() +
+                parseFloat(this.optionBtn['btn'].style.height) +
+                VERTICAL_GAP;
+        } else {
+            const canvasTop = (sh - CANVAS_ORIGINAL_HEIGHT * scale) / 2;
+            screenX = canvasLeft + 30 * scale;
+            screenY = canvasTop + 140 * scale;
         }
-        if (screenX > rightLimit) {
-            screenX = rightLimit;
-        }
 
-        // 6. DOM 스타일 적용
         Object.assign(this.btnElement.style, {
             left: `${screenX}px`,
             top: `${screenY}px`,
             width: `${buttonWidth}px`,
             height: `${buttonHeight}px`,
-            position: 'absolute',
         });
 
-        // 7. 카운트 뱃지 조정
+        Object.assign(this.btnElement.style, {
+            left: `${screenX}px`,
+            top: `${screenY}px`,
+            width: `${buttonWidth}px`,
+            height: `${buttonHeight}px`,
+        });
+
         const badgeSize = Math.min(buttonWidth, buttonHeight) * 0.35;
         Object.assign(this.countDisplay.style, {
             width: `${badgeSize}px`,

@@ -22,7 +22,13 @@ export class Score extends ContainerX {
             'circle_2',
             'mScore'
         ) as createjs.MovieClip;
+
         this.addChild(this.scoreRoot);
+        const bounds = this.scoreRoot.getBounds();
+        if (bounds) {
+            this.scoreRoot.regX = bounds.x + bounds.width / 2; // 수평 중앙
+            this.scoreRoot.regY = bounds.y; // ✅ 상단 끝
+        }
 
         for (let i = 0; i <= 3; i++) {
             const clip = this.scoreRoot.getChildByName(
@@ -37,46 +43,13 @@ export class Score extends ContainerX {
 
     private applyResize(): void {
         UIScale.update();
+        const uiScale = UIScale.uiScale;
 
-        const sw = window.innerWidth;
-        const sh = window.innerHeight;
+        this.scoreRoot.x = CANVAS_ORIGINAL_WIDTH / 2;
+        this.scoreRoot.y = 30; // ✅ 상단 고정
 
-        // ✅ 위치는 항상 Canvas 중앙 고정 (900x1600 기준)
-        const canvasX = CANVAS_ORIGINAL_WIDTH / 2;
-        const canvasY = 180;
-
-        this.scoreRoot.x = canvasX;
-        this.scoreRoot.y = canvasY;
-
-        // ✅ 화면 비율에 따라 크기만 조정
-        const aspectRatio = sw / sh;
-        const targetAspectRatio = 9 / 16;
-
-        if (aspectRatio < targetAspectRatio) {
-            // 가로가 좁을 때: 크기 축소 (0.6 ~ 0.8)
-            const scale = UIScale.scale;
-            const canvasRenderWidth = CANVAS_ORIGINAL_WIDTH * scale;
-            const canvasLeft = (sw - canvasRenderWidth) / 2;
-
-            if (canvasLeft < 0) {
-                // Canvas가 잘릴 때만 크기 축소
-                const visibleRatio = sw / (CANVAS_ORIGINAL_WIDTH * scale);
-                const targetScale = Math.max(
-                    0.5,
-                    Math.min(0.9, 0.9 * visibleRatio)
-                );
-                this.scoreRoot.scaleX = targetScale;
-                this.scoreRoot.scaleY = targetScale;
-            } else {
-                // 잘리지 않으면 기본 크기
-                this.scoreRoot.scaleX = 0.9;
-                this.scoreRoot.scaleY = 0.9;
-            }
-        } else {
-            // 화면이 넓을 때: 기본 크기
-            this.scoreRoot.scaleX = 0.9;
-            this.scoreRoot.scaleY = 0.9;
-        }
+        this.scoreRoot.scaleX = 0.9 * uiScale;
+        this.scoreRoot.scaleY = 0.9 * uiScale;
     }
 
     private addEventListeners(): void {
